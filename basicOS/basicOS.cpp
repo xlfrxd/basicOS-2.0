@@ -486,28 +486,27 @@ private:
     condition_variable cv;
     bool scheduler_done;
     atomic<int> active_cores{ 0 };
-    map<int, uint32_t> core_quantum_remaining; // For RR scheduling
+    map<int, uint32_t> core_quantum_remaining;
 
 public:
     Scheduler() : scheduler_done(false) {
-        // Initialize quantum counters for RR scheduler only
-        if (sysConfig.schedulerType == "rr") {
-            for (int i = 0; i < sysConfig.numCPU; i++) {
-                core_quantum_remaining[i] = sysConfig.quantumCycles;
-            }
+        // Initialize quantum counters for all cores
+        for (int i = 0; i < sysConfig.numCPU; i++) {
+            core_quantum_remaining[i] = sysConfig.quantumCycles;
         }
     }
 
     void addProcess(const Process& process) {
         lock_guard<mutex> lock(queue_mutex);
-        ready_queue.push(process);
-        cv.notify_one(); // Notify one waiting core
+        // Save current progress before adding back to queue
+        Process updated_process = process;
+        ready_queue.push(updated_process);
+        cv.notify_one();
     }
 
     Process getNextProcess(int core_id) {
         unique_lock<mutex> lock(queue_mutex);
 
-        // Wait for available process or scheduler done
         cv.wait(lock, [&] {
             return !ready_queue.empty() || scheduler_done;
             });
@@ -521,11 +520,10 @@ public:
         p.core_id = core_id;
         active_cores++;
 
-        // Reset quantum only for RR scheduler
-        if (sysConfig.schedulerType == "rr") {
-            core_quantum_remaining[core_id] = sysConfig.quantumCycles;
-        }
+        // Reset quantum for this core
+        core_quantum_remaining[core_id] = sysConfig.quantumCycles;
 
+        // Add to running processes
         running_processes.push_back(p);
         return p;
     }
@@ -554,6 +552,26 @@ public:
             [&process](const Process& p) { return p.id == process.id; });
         if (it != running_processes.end()) {
             it->progress = process.progress;
+            it->current_instruction = process.current_instruction;
+            it->cycles_until_next_instruction = process.cycles_until_next_instruction;
+        }
+    }
+
+    void preemptProcess(Process& process) {
+        lock_guard<mutex> lock(queue_mutex);
+        // Remove from running processes
+        auto it = find_if(running_processes.begin(), running_processes.end(),
+            [&process](const Process& p) { return p.id == process.id; });
+        if (it != running_processes.end()) {
+            running_processes.erase(it);
+            active_cores--;
+        }
+        // Add back to ready queue if not finished
+        if (process.progress < process.burst_time) {
+            ready_queue.push(process);
+        }
+        else {
+            finished_processes.push_back(process);
         }
     }
 
@@ -642,29 +660,32 @@ void coreWorker(Scheduler& scheduler, int core_id) {
         Process p = scheduler.getNextProcess(core_id);
         if (p.id.empty()) continue;
 
-        while (p.progress < p.burst_time) {
+        bool was_preempted = false;
+        while (p.progress < p.burst_time && !was_preempted) {
+            // Check for preemption
             if (scheduler.shouldPreempt(core_id)) {
-                scheduler.addProcess(p);
+                scheduler.preemptProcess(p);
+                was_preempted = true;
                 break;
             }
 
-            // Execute instruction but don't increment CPU cycles here
+            // Execute instruction
             bool instruction_completed = p.executeInstruction();
 
             if (instruction_completed) {
-                // Update progress only when instruction completes
                 scheduler.updateProcessProgress(p);
             }
 
+            // Update quantum counter
             scheduler.updateQuantum(core_id);
 
-            // Wait for configured delay cycles
+            // Simulate execution delay
             for (uint32_t i = 0; i < sysConfig.delaysPerExec; i++) {
                 this_thread::sleep_for(chrono::milliseconds(100));
             }
         }
 
-        if (p.progress >= p.burst_time) {
+        if (!was_preempted && p.progress >= p.burst_time) {
             scheduler.markAsFinished(p);
         }
     }
