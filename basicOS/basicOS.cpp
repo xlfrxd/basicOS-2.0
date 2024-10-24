@@ -712,12 +712,12 @@ int main(int argc, const char* argv[]) {
     static Scheduler scheduler;
     static vector<thread> worker_threads;
 
-    printHeader();
-
     while (!shouldExit) {
         commandArgs.clear();
 
-        
+        if (currentScreen == "Main Menu") {
+            printHeader();
+        }
 
         printInstruc();
         getline(cin, input);
@@ -740,7 +740,6 @@ int main(int argc, const char* argv[]) {
             else {
                 currentScreen = "Main Menu";
                 clearScreen();
-                printHeader();
             }
             continue;
         }
