@@ -175,6 +175,8 @@ void createScreen(const string& screenName) {
         newScreen.totalLines = 100; // Simulated total number of instructions
         newScreen.creationTimestamp = getCurrentTimestamp(); // Store creation time stamp
         newScreen.logFileName = screenName + "_log.txt"; // Default logs text file
+        newScreen.commandArr.push_back("process-smi"); // Print process information
+        newScreen.commandArr.push_back("report-util"); // Current, running, and finished processes report
         newScreen.commandArr.push_back("exit"); // Default new screen command
         newScreen.commandArr.push_back("print"); // Print logs
         screens[screenName] = newScreen;  // Store the new screen
