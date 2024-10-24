@@ -18,6 +18,10 @@
 
 using namespace std;
 
+atomic<uint64_t> cpu_cycles{ 0 }; // Global counter for CPU cycles
+atomic<bool> process_generator_running{ false }; // Flag to control process generator thread
+thread process_generator_thread; // Thread to generate test processes
+
 // colors
 const int RED = FOREGROUND_RED | FOREGROUND_INTENSITY;
 const int GREEN = FOREGROUND_GREEN | FOREGROUND_INTENSITY;
@@ -166,22 +170,27 @@ void logPrintCommand(const std::string& fileName, int coreId, const std::string&
     writeToFile(fileName, log, processName);
 }
 
-// Handle creation of new screen
-void createScreen(const string& screenName) {
+// Add these declarations near the top of basicOS.cpp
+void createScreenSilent(const string& screenName); // New function for creating screen without display
+
+// Modify createScreen to have an optional display parameter
+void createScreen(const string& screenName, bool shouldDisplay = true) {
     if (screens.find(screenName) == screens.end()) {
         ScreenInfo newScreen;
         newScreen.processName = screenName;
-        newScreen.currentLine = 1;  // Start at instruction 1
-        newScreen.totalLines = 100; // Simulated total number of instructions
-        newScreen.creationTimestamp = getCurrentTimestamp(); // Store creation time stamp
-        newScreen.logFileName = screenName + "_log.txt"; // Default logs text file
-        newScreen.commandArr.push_back("process-smi"); // Print process information
-        newScreen.commandArr.push_back("report-util"); // Current, running, and finished processes report
-        newScreen.commandArr.push_back("exit"); // Default new screen command
-        newScreen.commandArr.push_back("print"); // Print logs
-        screens[screenName] = newScreen;  // Store the new screen
-        currentScreen = screenName;  // Switch to the newly created screen
-        displayScreen(screens[screenName]);  // Display the new screen layout
+        newScreen.currentLine = 1;
+        newScreen.totalLines = 100;
+        newScreen.creationTimestamp = getCurrentTimestamp();
+        newScreen.logFileName = screenName + "_log.txt";
+        newScreen.commandArr.push_back("exit");
+        newScreen.commandArr.push_back("print");
+        screens[screenName] = newScreen;
+
+        // Only switch to the screen and display it if shouldDisplay is true
+        if (shouldDisplay) {
+            currentScreen = screenName;
+            displayScreen(screens[screenName]);
+        }
 
         // Add default log file header
         string content = "";
@@ -190,6 +199,11 @@ void createScreen(const string& screenName) {
     else {
         cout << "Screen '" << screenName << "' already exists.\n";
     }
+}
+
+// Silent version of createScreen that never displays
+void createScreenSilent(const string& screenName) {
+    createScreen(screenName, false);
 }
 
 // Display unknown command
@@ -357,7 +371,7 @@ bool readConfigFile(const string& filename) {
     return sysConfig.validate();
 }
 
-// Add these enums before the Process class definition
+// enums before the Process class definition
 enum class InstructionType {
     PRINT,
     SLEEP
@@ -376,13 +390,11 @@ public:
     int progress;
     int core_id;
     chrono::system_clock::time_point arrival_time;
-    string logFileName;
-    mt19937 rng; // Random number generator per process
-
-    // New members for instruction handling
+    mt19937 rng;
     vector<Instruction> instructions;
     int current_instruction;
     int cycles_until_next_instruction;
+    bool instruction_completed;
 
     Process(const string& pid, int burst)
         : id(pid),
@@ -390,11 +402,10 @@ public:
         progress(0),
         core_id(-1),
         arrival_time(chrono::system_clock::now()),
-        logFileName(pid + "_log.txt"),
         rng(random_device{}()),
         current_instruction(0),
-        cycles_until_next_instruction(0) {
-        // Generate random instructions
+        cycles_until_next_instruction(0),
+        instruction_completed(false) {
         generateInstructions();
     }
 
@@ -412,33 +423,40 @@ public:
         }
     }
 
-    void executeInstruction() {
+    // Returns true if an instruction was completed this cycle
+    bool executeInstruction() {
         if (current_instruction >= instructions.size()) {
-            return;
+            return false;
         }
+
+        instruction_completed = false;
 
         if (cycles_until_next_instruction > 0) {
             cycles_until_next_instruction--;
-            return;
+            return false;
         }
 
         auto& instruction = instructions[current_instruction];
         switch (instruction.type) {
         case InstructionType::PRINT:
             // PRINT instructions complete immediately
-            cycles_until_next_instruction = 0;
+            instruction_completed = true;
             break;
         case InstructionType::SLEEP:
             // Set cycles needed for SLEEP instruction
-            cycles_until_next_instruction = instruction.cycles;
+            instruction_completed = true;
+            // cycles_until_next_instruction = instruction.cycles;
             break;
         }
 
         // Move to next instruction if current one is complete
-        if (cycles_until_next_instruction == 0) {
+        if (instruction_completed) {
             current_instruction++;
             progress++;
+            return true;
         }
+
+        return false;
     }
 
     // Get random execution time for each instruction
@@ -513,7 +531,6 @@ public:
     }
 
     bool shouldPreempt(int core_id) {
-        // Only check preemption for RR scheduler
         if (sysConfig.schedulerType != "rr") {
             return false;
         }
@@ -523,7 +540,6 @@ public:
     }
 
     void updateQuantum(int core_id) {
-        // Only update quantum for RR scheduler
         if (sysConfig.schedulerType == "rr") {
             lock_guard<mutex> lock(queue_mutex);
             if (core_quantum_remaining[core_id] > 0) {
@@ -590,31 +606,62 @@ public:
     }
 };
 
-// Modified worker function to support system configuration
-void coreWorker(Scheduler& scheduler, int core_id) {
+// scheduler test functionality
+void generateTestProcesses(Scheduler& scheduler) {
     mt19937 rng(random_device{}());
-    uniform_int_distribution<> core_delay(50, 200);
+    int process_counter = 0;
 
+    while (process_generator_running) {
+        if (!sysConfig.isInitialized) {
+            break;
+        }
+
+        uniform_int_distribution<> inst_dist(sysConfig.minInstructions, sysConfig.maxInstructions);
+        int num_instructions = inst_dist(rng);
+
+        string process_id = "p" + to_string(process_counter++);
+        Process new_process(process_id, num_instructions);
+
+        scheduler.addProcess(new_process);
+
+        this_thread::sleep_for(chrono::milliseconds(sysConfig.batchProcessFreq * 100));
+    }
+}
+
+// New function to handle CPU cycle updates in main loop
+void updateCPUCycles(const Scheduler& scheduler) {
+    while (!scheduler.isSchedulerDone()) {
+        cpu_cycles++;
+        this_thread::sleep_for(chrono::milliseconds(100)); // Adjust timing as needed
+    }
+}
+
+// Core worker function to simulate CPU execution
+void coreWorker(Scheduler& scheduler, int core_id) {
     while (!scheduler.isSchedulerDone()) {
         Process p = scheduler.getNextProcess(core_id);
         if (p.id.empty()) continue;
 
         while (p.progress < p.burst_time) {
-            // Check for preemption (RR scheduling)
             if (scheduler.shouldPreempt(core_id)) {
-                scheduler.addProcess(p); // Re-queue the process
+                scheduler.addProcess(p);
                 break;
             }
 
-            p.executeInstruction();
-            scheduler.updateQuantum(core_id);
-            scheduler.updateProcessProgress(p);
+            // Execute instruction but don't increment CPU cycles here
+            bool instruction_completed = p.executeInstruction();
 
-            if (p.cycles_until_next_instruction == 0) {
-                logPrintCommand(p.logFileName, core_id, p.id);
+            if (instruction_completed) {
+                // Update progress only when instruction completes
+                scheduler.updateProcessProgress(p);
             }
 
-            this_thread::sleep_for(chrono::milliseconds(core_delay(rng)));
+            scheduler.updateQuantum(core_id);
+
+            // Wait for configured delay cycles
+            for (uint32_t i = 0; i < sysConfig.delaysPerExec; i++) {
+                this_thread::sleep_for(chrono::milliseconds(100));
+            }
         }
 
         if (p.progress >= p.burst_time) {
@@ -676,28 +723,81 @@ void execute(Scheduler& scheduler, const vector<string>& cmd) {
     }
     else if (cmd[0] == "clear") {
         clearScreen();
-        printHeader();
     }
     else if (cmd[0] == "screen") {
-        if (cmd.size() < 3) {
+        // Check if command has enough arguments
+        if (cmd.size() < 2) {
             SetConsoleColor(RED);
             cout << "Error: Invalid screen command format." << endl;
             SetConsoleColor(RESET);
             return;
         }
 
-        if (cmd[1] == "-s") {
-            createScreen(cmd[2]); // Pass screen name
-        }
-        else if (cmd[1] == "-r") {
-            resumeScreen(cmd[2]); // Pass screen name
-        }
-        else if (cmd[1] == "-ls") {
+        if (cmd[1] == "-ls") {
             scheduler.displayStatus();
+        }
+        else if (cmd[1] == "-s" || cmd[1] == "-r") {
+            // These commands need a third argument (screen name)
+            if (cmd.size() < 3) {
+                SetConsoleColor(RED);
+                cout << "Error: Missing screen name for " << cmd[1] << " command." << endl;
+                SetConsoleColor(RESET);
+                return;
+            }
+
+            if (cmd[1] == "-s") {
+                createScreen(cmd[2]);
+            }
+            else { // cmd[1] == "-r"
+                resumeScreen(cmd[2]);
+            }
         }
         else {
             displayError(cmd[1]);
         }
+    }
+    else if (cmd[0] == "scheduler-test") {
+        if (process_generator_running) {
+            SetConsoleColor(YELLOW);
+            cout << "Process generator is already running." << endl;
+            SetConsoleColor(RESET);
+            return;
+        }
+
+        SetConsoleColor(GREEN);
+        cout << "Starting process generator..." << endl;
+        cout << "Generating processes every " << sysConfig.batchProcessFreq << " cycles" << endl;
+        cout << "Instructions per process: " << sysConfig.minInstructions << "-" << sysConfig.maxInstructions << endl;
+        cout << "Use 'screen -ls' to view processes and 'scheduler-stop' to stop generation" << endl;
+        SetConsoleColor(RESET);
+
+        process_generator_running = true;
+        process_generator_thread = thread(generateTestProcesses, ref(scheduler));
+    }
+    else if (cmd[0] == "scheduler-stop") {
+        if (!process_generator_running) {
+            SetConsoleColor(YELLOW);
+            cout << "Process generator is not running." << endl;
+            SetConsoleColor(RESET);
+            return;
+        }
+
+        SetConsoleColor(GREEN);
+        cout << "Stopping process generator..." << endl;
+        SetConsoleColor(RESET);
+
+        process_generator_running = false;
+        if (process_generator_thread.joinable()) {
+            process_generator_thread.join();
+        }
+    }
+    else if (cmd[0] == "report-util") {
+        SetConsoleColor(YELLOW);
+        cout << "Report utility not implemented." << endl;
+        SetConsoleColor(RESET);
+    }
+    else {
+        displayError(cmd[0]);
     }
 }
 
@@ -711,6 +811,8 @@ int main(int argc, const char* argv[]) {
     // Initialize scheduler but don't start threads yet
     static Scheduler scheduler;
     static vector<thread> worker_threads;
+
+    thread cpu_cycle_thread;
 
     while (!shouldExit) {
         commandArgs.clear();
@@ -752,9 +854,13 @@ int main(int argc, const char* argv[]) {
                     execute(scheduler, commandArgs);
 
                     // Start worker threads after initialization
-                    if (command == "initialize" && sysConfig.isInitialized && worker_threads.empty()) {
-                        for (int i = 0; i < sysConfig.numCPU; ++i) {
-                            worker_threads.emplace_back(coreWorker, ref(scheduler), i);
+                    if (command == "initialize" && sysConfig.isInitialized) {
+                        if (worker_threads.empty()) {
+                            for (int i = 0; i < sysConfig.numCPU; ++i) {
+                                worker_threads.emplace_back(coreWorker, ref(scheduler), i);
+                            }
+                            // Start CPU cycle update thread
+                            cpu_cycle_thread = thread(updateCPUCycles, ref(scheduler));
                         }
                     }
                 }
@@ -829,8 +935,25 @@ int main(int argc, const char* argv[]) {
 
     // Cleanup when exiting
     scheduler.setSchedulerDone(true);
+
+    // Stop and join CPU cycle thread
+    if (cpu_cycle_thread.joinable()) {
+        cpu_cycle_thread.join();
+    }
+
+    // Stop process generator if running
+    if (process_generator_running) {
+        process_generator_running = false;
+        if (process_generator_thread.joinable()) {
+            process_generator_thread.join();
+        }
+    }
+
+    // Join worker threads
     for (auto& t : worker_threads) {
-        t.join();
+        if (t.joinable()) {
+            t.join();
+        }
     }
 
     SetConsoleColor(RESET);
