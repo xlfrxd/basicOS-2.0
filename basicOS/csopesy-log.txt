@@ -1,0 +1,8 @@
+Active Cores: 0
+Processes in queue: 0
+
+Running processes:
+
+Finished processes:
+--------------------------------------
+

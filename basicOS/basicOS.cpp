@@ -87,6 +87,7 @@ void printHeader() {
 // Display cmd frontline
 void printInstruc() {
     SetConsoleColor(RESET);
+    cout << "------------------------------------------------" << endl;
     cout << "Enter a command: ";
 }
 
@@ -108,11 +109,11 @@ void clearScreen() {
 // Display console for screen
 void displayScreen(const ScreenInfo& screen) {
     clearScreen();
-    cout << "\n========== Screen: ";
+    cout << "\n----------------- Screen: ";
     SetConsoleColor(GREEN);
     cout << screen.processName;
     SetConsoleColor(RESET);
-    cout << " ==========\n";
+    cout << " -----------------\n";
     cout << "Process Name: ";
     SetConsoleColor(GREEN);
     cout << screen.processName;
@@ -133,7 +134,6 @@ void displayScreen(const ScreenInfo& screen) {
     SetConsoleColor(YELLOW);
     cout << "Type 'exit' to return to the Main Menu.\n";
     SetConsoleColor(RESET);
-    cout << "=========================================\n";
 }
 
 // Write to text file
@@ -595,7 +595,7 @@ public:
     void displayStatus() {
         lock_guard<mutex> lock(queue_mutex);
 
-        cout << "\n--------------------------------------" << endl;
+        cout << "------------------------------------------------" << endl;
         cout << "Active Cores: " << active_cores << endl;
         cout << "Processes in queue: " << ready_queue.size() << endl;
 
@@ -611,7 +611,6 @@ public:
                 << p.burst_time << "/" << p.burst_time << endl;
         }
 
-        cout << "--------------------------------------\n" << endl;
     }
     void printStatus() {
         string filename = "csopesy-log.txt";
@@ -636,7 +635,9 @@ public:
             }
 
             outputFile << "--------------------------------------\n" << endl;
+            SetConsoleColor(GREEN);
             cout << "Report generated at " << filename << "!"<< endl;
+            SetConsoleColor(GREEN);
             outputFile.close();
         }
     }
@@ -735,6 +736,7 @@ bool initializeSystem() {
     }
 
     sysConfig.isInitialized = true;
+    cout << "------------------------------------------------"<< endl;
     SetConsoleColor(GREEN);
     cout << "System initialized successfully with:" << endl;
     cout << "CPUs: " << sysConfig.numCPU << endl;
@@ -855,6 +857,7 @@ int main(int argc, const char* argv[]) {
     string input = "";
     vector<string> commandArgs;
     bool shouldExit = false;
+    bool leftMainScreen = true;
 
     // Initialize scheduler but don't start threads yet
     static Scheduler scheduler;
@@ -865,8 +868,9 @@ int main(int argc, const char* argv[]) {
     while (!shouldExit) {
         commandArgs.clear();
 
-        if (currentScreen == "Main Menu") {
+        if (currentScreen == "Main Menu" && leftMainScreen) {
             printHeader();
+            leftMainScreen = false;
         }
 
         printInstruc();
@@ -890,6 +894,7 @@ int main(int argc, const char* argv[]) {
             else {
                 currentScreen = "Main Menu";
                 clearScreen();
+                leftMainScreen = true;
             }
             continue;
         }
@@ -914,6 +919,7 @@ int main(int argc, const char* argv[]) {
                 }
                 else {
                     displayError(command);
+                    
                 }
             }
             else {
@@ -921,6 +927,7 @@ int main(int argc, const char* argv[]) {
                 cout << "Error: System not initialized. Please run 'initialize' command first." << endl;
                 SetConsoleColor(RESET);
             }
+            leftMainScreen = false;
         }
 
         /*
