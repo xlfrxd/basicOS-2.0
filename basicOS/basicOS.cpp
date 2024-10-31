@@ -613,6 +613,33 @@ public:
 
         cout << "--------------------------------------\n" << endl;
     }
+    void printStatus() {
+        string filename = "csopesy-log.txt";
+        ofstream outputFile(filename, ios::app);
+        if (!outputFile.is_open()) {
+            cerr << "Error: Could not open or create the file: " << filename << endl;
+        }
+        else {
+            outputFile << "Active Cores: " << active_cores << endl;
+            outputFile << "Processes in queue: " << ready_queue.size() << endl;
+
+            outputFile << "\nRunning processes:" << endl;
+            for (const auto& p : running_processes) {
+                outputFile << p.id << "\t(" << p.getTimeStamp() << ")\tCore: " << p.core_id
+                    << "\tProgress: " << p.progress << "/" << p.burst_time << endl;
+            }
+
+            outputFile << "\nFinished processes:" << endl;
+            for (const auto& p : finished_processes) {
+                outputFile << p.id << "\t(" << p.getTimeStamp() << ")\tFinished\t"
+                    << p.burst_time << "/" << p.burst_time << endl;
+            }
+
+            outputFile << "--------------------------------------\n" << endl;
+            cout << "Report generated at " << filename << "!"<< endl;
+            outputFile.close();
+        }
+    }
 
     bool isSchedulerDone() const {
         return scheduler_done;
@@ -730,6 +757,7 @@ void execute(Scheduler& scheduler, const vector<string>& cmd) {
         return;
     }
 
+
     // Check initialization status except for initialize command
     if (cmd[0] != "initialize" && !sysConfig.isInitialized) {
         SetConsoleColor(RED);
@@ -813,9 +841,7 @@ void execute(Scheduler& scheduler, const vector<string>& cmd) {
         }
     }
     else if (cmd[0] == "report-util") {
-        SetConsoleColor(YELLOW);
-        cout << "Report utility not implemented." << endl;
-        SetConsoleColor(RESET);
+        scheduler.printStatus();
     }
     else {
         displayError(cmd[0]);
@@ -825,6 +851,7 @@ void execute(Scheduler& scheduler, const vector<string>& cmd) {
 // Modified main function to enforce initialization
 int main(int argc, const char* argv[]) {
     initializeMainMenuCmds();
+    ofstream outputFile("csopesy-log.txt", ios::trunc);
     string input = "";
     vector<string> commandArgs;
     bool shouldExit = false;
