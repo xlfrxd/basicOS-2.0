@@ -51,6 +51,9 @@ void SetConsoleColor(int textColor) {
 
 // Global map to store all screens created by the user
 map<string, ScreenInfo> screens;
+// Screens mutex
+std::mutex screensMutex;
+
 string currentScreen = "Main Menu";  // Track the current screen (default to "Main Menu")
 // Helper function for getting system current timestamp
 string getCurrentTimestamp() {
@@ -170,6 +173,45 @@ void logPrintCommand(const std::string& fileName, int coreId, const std::string&
     writeToFile(fileName, log, processName);
 }
 
+// Function to run each process in the background
+void runProcessInBackground(ScreenInfo& info) {
+
+    // Check if the process exists before starting
+    if (screens.find(info.processName) == screens.end()) {
+        std::cout << "Process " << info.processName << " not found." << std::endl;
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(screensMutex);
+
+
+    while (info.currentLine < info.totalLines) {
+        // Move to the next instruction
+        info.currentLine++;
+
+        // Simulate execution time
+        this_thread::sleep_for(chrono::milliseconds(123));
+    }
+    // Update process finish flag
+    info.isFinished = true;
+}
+
+// Function to start a process with background execution
+void startProcess(const std::string& processName) {
+    if (screens.find(processName) != screens.end()) {
+        ScreenInfo& info = screens[processName];
+
+        // Create a new thread to execute the process in the background
+        thread backgroundThread(runProcessInBackground, ref(info));
+
+        // Detach the thread so it runs independently
+        backgroundThread.detach();
+    }
+    else {
+        cout << "Process " << processName << " not found." << endl;
+    }
+}
+
 // Add these declarations near the top of basicOS.cpp
 void createScreenSilent(const string& screenName); // New function for creating screen without display
 
@@ -179,12 +221,17 @@ void createScreen(const string& screenName, bool shouldDisplay = true) {
         ScreenInfo newScreen;
         newScreen.processName = screenName;
         newScreen.currentLine = 1;
-        newScreen.totalLines = 100;
+        newScreen.totalLines = 10 + (rand() % 100);
+        //newScreen.totalLines = sysConfig.minInstructions + (rand() % sysConfig.maxInstructions);
         newScreen.creationTimestamp = getCurrentTimestamp();
+        newScreen.isFinished = false;
         newScreen.logFileName = screenName + "_log.txt";
         newScreen.commandArr.push_back("exit");
+        newScreen.commandArr.push_back("process-smi");
         newScreen.commandArr.push_back("print");
         screens[screenName] = newScreen;
+
+        startProcess(screenName); // start background process
 
         // Only switch to the screen and display it if shouldDisplay is true
         if (shouldDisplay) {
@@ -197,7 +244,7 @@ void createScreen(const string& screenName, bool shouldDisplay = true) {
         writeToFile(newScreen.logFileName, content, newScreen.processName);
     }
     else {
-        cout << "Screen '" << screenName << "' already exists.\n";
+        cout << "Screen '" << screenName << "' already exists." << endl;
     }
 }
 
@@ -225,6 +272,8 @@ void displayRecognized(const string& cmd) {
 
 // Display created screen
 void resumeScreen(const string& screenName) {
+    std::lock_guard<std::mutex> lock(screensMutex);
+
     if (screens.find(screenName) != screens.end()) {
         currentScreen = screenName;
         displayScreen(screens[screenName]);  // Display the screen layout
@@ -800,7 +849,15 @@ void execute(Scheduler& scheduler, const vector<string>& cmd) {
                 createScreen(cmd[2]);
             }
             else { // cmd[1] == "-r"
-                resumeScreen(cmd[2]);
+
+                // Screen exists and process has finished
+                if (screens.find(cmd[2]) != screens.end() || screens[cmd[2]].isFinished) {
+                    cout << "Process " << cmd[2] << " not found." << endl;
+                }
+                else {
+                    resumeScreen(cmd[2]);
+
+                }
             }
         }
         else {
@@ -849,6 +906,7 @@ void execute(Scheduler& scheduler, const vector<string>& cmd) {
         displayError(cmd[0]);
     }
 }
+
 
 // Modified main function to enforce initialization
 int main(int argc, const char* argv[]) {
@@ -979,8 +1037,29 @@ int main(int argc, const char* argv[]) {
         // For screen-specific commands
         else {
             if (validateCmd(command, screens.at(currentScreen).commandArr)) {
-                // Handle screen-specific commands
-                // ... (existing screen command handling)
+                displayRecognized(command);
+                // Update process information (lines of code being executed)
+                if (command == "process-smi") {
+                    // Check if the process exists in the screens map
+                    if (screens.find(currentScreen) != screens.end()) {
+                        ScreenInfo& info = screens[currentScreen];
+
+                        // Display process details
+                        if (info.currentLine != info.totalLines && !info.isFinished) {
+                            cout << "Process: " << info.processName << endl;
+                            cout << "ID: " << screens.size() << endl << endl;
+                            cout << "Current instruction line: " << info.currentLine << endl;
+                            cout << "Lines of code: " << info.totalLines << endl;
+                        }
+                        else {
+                            cout << "Finished!" << endl;
+                            
+                        }
+                    }
+                    else {
+                        cout << "Process " << currentScreen << " not found." << endl;
+                    }
+                }
             }
             else {
                 displayError(command);

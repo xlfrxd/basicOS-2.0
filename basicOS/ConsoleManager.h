@@ -31,6 +31,7 @@
 #include <condition_variable> // thread syncing
 #include <chrono> // time
 #include <atomic> // atomic
+#include <thread> // sleep
 
 // Constants for colors
 extern const int RED;
@@ -47,6 +48,7 @@ struct ScreenInfo {
     std::string creationTimestamp;
     std::vector<std::string> commandArr;
     std::string logFileName;
+    bool isFinished;
 };
 
 // Global variables
