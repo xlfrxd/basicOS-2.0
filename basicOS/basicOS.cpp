@@ -851,12 +851,12 @@ void execute(Scheduler& scheduler, const vector<string>& cmd) {
             else { // cmd[1] == "-r"
 
                 // Screen exists and process has finished
-                if (screens.find(cmd[2]) != screens.end() || screens[cmd[2]].isFinished) {
+                if (screens.find(cmd[2]) != screens.end() && screens[cmd[2]].isFinished) {
                     cout << "Process " << cmd[2] << " not found." << endl;
+                    screens.erase(cmd[2]); // remove finished screen
                 }
                 else {
                     resumeScreen(cmd[2]);
-
                 }
             }
         }
