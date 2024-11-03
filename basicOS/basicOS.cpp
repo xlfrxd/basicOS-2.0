@@ -272,8 +272,6 @@ void displayRecognized(const string& cmd) {
 
 // Display created screen
 void resumeScreen(const string& screenName) {
-    std::lock_guard<std::mutex> lock(screensMutex);
-
     if (screens.find(screenName) != screens.end()) {
         currentScreen = screenName;
         displayScreen(screens[screenName]);  // Display the screen layout
@@ -853,10 +851,14 @@ void execute(Scheduler& scheduler, const vector<string>& cmd) {
                 // Screen exists and process has finished
                 if (screens.find(cmd[2]) != screens.end() && screens[cmd[2]].isFinished) {
                     cout << "Process " << cmd[2] << " not found." << endl;
-                    screens.erase(cmd[2]); // remove finished screen
+                    //screens.erase(cmd[2]); // remove finished screen
+                }
+                else if (screens.find(cmd[2]) != screens.end() && !screens[cmd[2]].isFinished) {
+                    resumeScreen(cmd[2]);
                 }
                 else {
-                    resumeScreen(cmd[2]);
+                    cout << "Process " << cmd[2] << " not found." << endl;
+
                 }
             }
         }
@@ -1037,7 +1039,7 @@ int main(int argc, const char* argv[]) {
         // For screen-specific commands
         else {
             if (validateCmd(command, screens.at(currentScreen).commandArr)) {
-                displayRecognized(command);
+                //displayRecognized(command);
                 // Update process information (lines of code being executed)
                 if (command == "process-smi") {
                     // Check if the process exists in the screens map
