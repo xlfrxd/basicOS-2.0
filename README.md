@@ -1,9 +1,6 @@
 CSOPESY S16
-
-Izabella Imperial,
-Marc Marasigan,
-Nikolai Santiago,
-Alfred Victoria
+Instructor: Dr. Neil Patrick Del Gallego
+Group 6: Izabella Imperial, Marc Marasigan, Nikolai Santiago, Alfred Victoria
 
 Instructions:
 1. Open the project folder in Visual Studio 
