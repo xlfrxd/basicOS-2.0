@@ -718,7 +718,7 @@ void generateTestProcesses(Scheduler& scheduler) {
 
         scheduler.addProcess(new_process);
 
-        this_thread::sleep_for(chrono::milliseconds(sysConfig.batchProcessFreq * 1000));
+        this_thread::sleep_for(chrono::milliseconds(sysConfig.batchProcessFreq * 700));
     }
 }
 
