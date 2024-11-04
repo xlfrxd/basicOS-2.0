@@ -718,7 +718,7 @@ void generateTestProcesses(Scheduler& scheduler) {
 
         scheduler.addProcess(new_process);
 
-        this_thread::sleep_for(chrono::milliseconds(sysConfig.batchProcessFreq * 100));
+        this_thread::sleep_for(chrono::milliseconds(sysConfig.batchProcessFreq * 1000));
     }
 }
 
@@ -762,8 +762,8 @@ void coreWorker(Scheduler& scheduler, int core_id) {
                 }
             }
             else {
-                // If delaysPerExec is 0, sleep for a longer time (500 milliseconds) to allow other threads to run
-                this_thread::sleep_for(chrono::milliseconds(500));
+                // If delaysPerExec is 0, sleep for a longer time (200 milliseconds) to allow other threads to run
+                this_thread::sleep_for(chrono::milliseconds(200));
             }
         }
 
