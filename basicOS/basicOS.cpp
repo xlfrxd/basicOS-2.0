@@ -504,8 +504,8 @@ public:
 
     // Get random execution time for each instruction
     chrono::milliseconds getInstructionTime() {
-        // Random time between 100ms and 1000ms
-        uniform_int_distribution<> dist(100, 1000);
+        // Random time between 500ms and 2000ms
+        uniform_int_distribution<> dist(500, 2000);
         return chrono::milliseconds(dist(rng));
     }
 
@@ -756,8 +756,14 @@ void coreWorker(Scheduler& scheduler, int core_id) {
             scheduler.updateQuantum(core_id);
 
             // Simulate execution delay
-            for (uint32_t i = 0; i < sysConfig.delaysPerExec; i++) {
-                this_thread::sleep_for(chrono::milliseconds(100));
+            if (sysConfig.delaysPerExec > 0) {
+                for (uint32_t i = 0; i < sysConfig.delaysPerExec; i++) {
+                    this_thread::sleep_for(chrono::milliseconds(100));
+                }
+            }
+            else {
+                // If delaysPerExec is 0, sleep for a longer time (500 milliseconds) to allow other threads to run
+                this_thread::sleep_for(chrono::milliseconds(500));
             }
         }
 
