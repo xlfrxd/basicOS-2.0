@@ -1,3 +1,0 @@
-Process name: p1
-Logs:
-

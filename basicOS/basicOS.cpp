@@ -225,7 +225,7 @@ void createScreen(const string& screenName, bool shouldDisplay = true) {
         //newScreen.totalLines = sysConfig.minInstructions + (rand() % sysConfig.maxInstructions);
         newScreen.creationTimestamp = getCurrentTimestamp();
         newScreen.isFinished = false;
-        newScreen.logFileName = screenName + "_log.txt";
+        //newScreen.logFileName = screenName + "_log.txt";
         newScreen.commandArr.push_back("exit");
         newScreen.commandArr.push_back("process-smi");
         newScreen.commandArr.push_back("print");
@@ -238,10 +238,6 @@ void createScreen(const string& screenName, bool shouldDisplay = true) {
             currentScreen = screenName;
             displayScreen(screens[screenName]);
         }
-
-        // Add default log file header
-        string content = "";
-        writeToFile(newScreen.logFileName, content, newScreen.processName);
     }
     else {
         cout << "Screen '" << screenName << "' already exists." << endl;
@@ -643,6 +639,9 @@ public:
         lock_guard<mutex> lock(queue_mutex);
 
         cout << "------------------------------------------------" << endl;
+
+        int utilization = (active_cores * 100.0) / sysConfig.numCPU;
+        cout << "CPU Utilization: " << fixed << setprecision(2) << utilization << "%" << endl;
         cout << "Active Cores: " << active_cores << endl;
         cout << "Processes in queue: " << ready_queue.size() << endl;
 
@@ -657,8 +656,8 @@ public:
             cout << p.id << "\t(" << p.getTimeStamp() << ")\tFinished\t"
                 << p.burst_time << "/" << p.burst_time << endl;
         }
-
     }
+
     void printStatus() {
         string filename = "csopesy-log.txt";
         ofstream outputFile(filename, ios::app);
@@ -666,6 +665,8 @@ public:
             cerr << "Error: Could not open or create the file: " << filename << endl;
         }
         else {
+            int utilization = (active_cores * 100.0) / sysConfig.numCPU;
+            outputFile << "CPU Utilization: " << fixed << setprecision(2) << utilization << "%" << endl;
             outputFile << "Active Cores: " << active_cores << endl;
             outputFile << "Processes in queue: " << ready_queue.size() << endl;
 
@@ -683,7 +684,7 @@ public:
 
             outputFile << "--------------------------------------\n" << endl;
             SetConsoleColor(GREEN);
-            cout << "Report generated at " << filename << "!"<< endl;
+            cout << "Report generated at " << filename << "!" << endl;
             SetConsoleColor(GREEN);
             outputFile.close();
         }
@@ -783,7 +784,7 @@ bool initializeSystem() {
     }
 
     sysConfig.isInitialized = true;
-    cout << "------------------------------------------------"<< endl;
+    cout << "------------------------------------------------" << endl;
     SetConsoleColor(GREEN);
     cout << "System initialized successfully with:" << endl;
     cout << "CPUs: " << sysConfig.numCPU << endl;
@@ -909,7 +910,6 @@ void execute(Scheduler& scheduler, const vector<string>& cmd) {
     }
 }
 
-
 // Modified main function to enforce initialization
 int main(int argc, const char* argv[]) {
     initializeMainMenuCmds();
@@ -979,7 +979,7 @@ int main(int argc, const char* argv[]) {
                 }
                 else {
                     displayError(command);
-                    
+
                 }
             }
             else {
@@ -989,52 +989,6 @@ int main(int argc, const char* argv[]) {
             }
             leftMainScreen = false;
         }
-
-        /*
-        // Non-Main Menu Commands
-        //TODO: Append this to a function
-        // Check if exit
-        if (command == "exit") {
-            // Check if current screen is Main Menu
-            if (currentScreen == "Main Menu") break; // Exit program
-            // Exit from current screen
-            currentScreen = "Main Menu"; // Set current screen to Main Menu
-            clearScreen();
-            continue;
-        }
-        else if (command == "print") {
-            if (currentScreen != "Main Menu") {
-                displayRecognized(command);
-                int CORES = 4;
-                for (int i = 0; i < 100; ++i) { // Simulate 100 print commands
-                    int coreId = i % CORES;
-                    logPrintCommand(screens.at(currentScreen).logFileName, coreId, screens.at(currentScreen).processName);
-                }
-            }
-            else {
-                input = "";
-                clearScreen();
-                if (screens.empty()) {
-                    SetConsoleColor(RED);
-                    cout << "ERROR: No process have been saved\n";
-                    SetConsoleColor(RESET);
-                }
-                else {
-                    // Loop through each screen in the map and print the contents of its associated text file
-                    for (const auto& screen : screens) {
-                        printLogToText(screen.first);  // screen.first contains the screen name (e.g., "p1")
-                    }
-                }
-                SetConsoleColor(YELLOW);
-                cout << "Enter 'enter key' to return to the Main Menu.\n";
-                SetConsoleColor(RESET);
-                cout << "=========================================\n";
-                printInstruc();
-                getline(cin, input); // Reads entire line
-                clearScreen();
-            }
-        }
-        */
 
         // For screen-specific commands
         else {
@@ -1055,7 +1009,7 @@ int main(int argc, const char* argv[]) {
                         }
                         else {
                             cout << "Finished!" << endl;
-                            
+
                         }
                     }
                     else {
