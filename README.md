@@ -1,8 +1,8 @@
 CSOPESY S16
 
-Izabella Imperial
-Marc Marasigan
-Nikolai Santiago
+Izabella Imperial,
+Marc Marasigan,
+Nikolai Santiago,
 Alfred Victoria
 
 Instructions:
