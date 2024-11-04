@@ -1,5 +1,7 @@
 CSOPESY S16
+
 Instructor: Dr. Neil Patrick Del Gallego
+
 Group 6: Izabella Imperial, Marc Marasigan, Nikolai Santiago, Alfred Victoria
 
 Instructions:
