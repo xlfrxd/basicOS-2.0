@@ -15,6 +15,7 @@
 
 #include "ConsoleManager.h"
 #include <random>
+#include <unordered_map>
 
 using namespace std;
 
@@ -325,6 +326,9 @@ struct SystemConfig {
     uint32_t maxInstructions;    // Maximum instructions per process
     uint32_t delaysPerExec;      // Delay cycles between instructions
     bool isInitialized;          // Track if system is initialized
+    size_t maxOverallMem;        // Maximum memory available in KB
+    size_t memPerFrame;          // The size of memory in KB per frame
+    size_t memPerProc;           // Fixed amount of memory for each process
 
     SystemConfig() : isInitialized(false) {}
 
@@ -352,6 +356,13 @@ struct SystemConfig {
 
         if (minInstructions < 1 || maxInstructions < minInstructions) {
             cerr << "Error: Invalid instruction range. min-ins must be >= 1 and <= max-ins" << endl;
+            return false;
+        }
+
+        if (maxOverallMem < memPerFrame || memPerFrame < 1) {
+            SetConsoleColor(RED);
+            cerr << "Error: Invalid memory configuration. max-overall-mem must be >= mem-per-frame, and mem-per-frame must be >= 1" << endl;
+            SetConsoleColor(RESET);
             return false;
         }
 
@@ -394,6 +405,10 @@ bool readConfigFile(const string& filename) {
         if (configValues.find("min-ins") == configValues.end()) throw runtime_error("min-ins not found");
         if (configValues.find("max-ins") == configValues.end()) throw runtime_error("max-ins not found");
         if (configValues.find("delays-per-exec") == configValues.end()) throw runtime_error("delays-per-exec not found");
+        if (configValues.find("max-overall-mem") == configValues.end()) throw runtime_error("max-overall-mem not found");
+        if (configValues.find("mem-per-frame") == configValues.end()) throw runtime_error("mem-per-frame not found");
+        if (configValues.find("mem-per-proc") == configValues.end()) throw runtime_error("mem-per-proc not found");
+
 
         sysConfig.numCPU = stoi(configValues["num-cpu"]);
         sysConfig.schedulerType = configValues["scheduler"];
@@ -402,7 +417,9 @@ bool readConfigFile(const string& filename) {
         sysConfig.minInstructions = stoul(configValues["min-ins"]);
         sysConfig.maxInstructions = stoul(configValues["max-ins"]);
         sysConfig.delaysPerExec = stoul(configValues["delays-per-exec"]);
-
+        sysConfig.maxOverallMem = stoul(configValues["max-overall-mem"]);
+        sysConfig.memPerFrame = stoul(configValues["mem-per-frame"]);
+        sysConfig.memPerProc = stoul(configValues["mem-per-proc"]);
     }
     catch (const exception& e) {
         SetConsoleColor(RED);
@@ -425,6 +442,117 @@ struct Instruction {
     int cycles;       // For SLEEP instructions, number of cycles to sleep
 };
 
+// IMemoryAllocator interface
+class IMemoryAllocator {
+public:
+    virtual void* allocate(size_t size) = 0;
+    virtual void deallocate(void* ptr) = 0;
+    virtual std::string visualizeMemory() = 0;
+
+    // New method to calculate external fragmentation
+    virtual size_t calculateExternalFragmentation() = 0;
+
+    virtual ~IMemoryAllocator() = default;  // Ensure a virtual destructor for proper cleanup
+};
+
+
+class FlatMemoryAllocator : public IMemoryAllocator {
+public:
+    FlatMemoryAllocator(size_t maxOverallMem, size_t memPerFrame)
+        : maxOverallMem(maxOverallMem), memPerFrame(memPerFrame) {
+        if (memPerFrame > 0)
+        {
+			freeFrames = maxOverallMem / memPerFrame;
+        }
+        else
+        {
+			freeFrames = 0;
+        }
+        memory.resize(maxOverallMem);
+        std::fill(memory.begin(), memory.end(), '.');
+        std::fill(allocationMap.begin(), allocationMap.end(), false);
+    }
+
+    void* allocate(size_t size) override {
+        // Find the first available block that can accommodate the process
+        for (size_t i = 0; i < freeFrames; i++) {
+            if (!allocationMap[i] && canAllocateAt(i, size / memPerFrame)) {
+                allocateAt(i, size / memPerFrame);
+                return &memory[i * memPerFrame];
+            }
+        }
+
+        // No available block found, return nullptr
+        return nullptr;
+    }
+
+    void deallocate(void* ptr) override {
+        // Find the index of the memory block to deallocate
+        size_t index = static_cast<char*>(ptr) - &memory[0];
+        size_t frameIndex = index / memPerFrame;
+        if (allocationMap[frameIndex]) {
+            deallocateAt(frameIndex);
+        }
+    }
+
+    std::string visualizeMemory() override {
+        std::stringstream ss;
+        for (size_t i = 0; i < memory.size(); i += memPerFrame) {
+            if (allocationMap[i / memPerFrame]) {
+                ss << "P" << i / memPerFrame << std::endl;
+            }
+            else {
+                ss << "." << std::endl;
+            }
+        }
+        return ss.str();
+    }
+
+    size_t calculateExternalFragmentation() {
+        size_t fragmentation = 0;
+        size_t currentFreeBlock = 0;
+
+        for (size_t i = 0; i < freeFrames; ++i) {
+            if (!allocationMap[i]) {
+                currentFreeBlock += memPerFrame;
+            }
+            else if (currentFreeBlock > 0) {
+                fragmentation += currentFreeBlock;
+                currentFreeBlock = 0;
+            }
+        }
+
+        // Add the last free block if we ended on a free frame
+        fragmentation += currentFreeBlock;
+        return fragmentation;
+    }
+
+
+private:
+    size_t maxOverallMem;
+    size_t memPerFrame;
+    size_t freeFrames;
+    std::vector<char> memory;
+    std::vector<bool> allocationMap;
+
+    bool canAllocateAt(size_t frameIndex, size_t size) const {
+        // Check if the memory block is large enough
+        return (frameIndex + size <= freeFrames);
+    }
+
+    void allocateAt(size_t frameIndex, size_t size) {
+        // Mark the memory block as allocated
+        std::fill(allocationMap.begin() + frameIndex, allocationMap.begin() + frameIndex + size, true);
+        freeFrames -= size;
+    }
+
+    void deallocateAt(size_t frameIndex) {
+        // Mark the memory block as deallocated
+        std::fill(allocationMap.begin() + frameIndex, allocationMap.begin() + frameIndex + 1, false);
+        freeFrames++;
+    }
+};
+
 // Class to represent a process with randomized execution time per instruction
 class Process {
 public:
@@ -438,6 +566,8 @@ public:
     int current_instruction;
     int cycles_until_next_instruction;
     bool instruction_completed;
+    size_t memoryAllocated;
+    void* memoryPtr;
 
     Process(const string& pid, int burst)
         : id(pid),
@@ -448,7 +578,9 @@ public:
         rng(random_device{}()),
         current_instruction(0),
         cycles_until_next_instruction(0),
-        instruction_completed(false) {
+        instruction_completed(false),
+		memoryAllocated(sysConfig.memPerProc),
+		memoryPtr(nullptr) {
         generateInstructions();
     }
 
@@ -523,13 +655,14 @@ public:
 class Scheduler {
 private:
     queue<Process> ready_queue;
-    vector<Process> running_processes;
+    unordered_map<string, Process> running_processes;
     vector<Process> finished_processes;
     mutex queue_mutex;
     condition_variable cv;
     bool scheduler_done;
     atomic<int> active_cores{ 0 };
     map<int, uint32_t> core_quantum_remaining;
+    unique_ptr<IMemoryAllocator> memoryAllocator;
 
 public:
     Scheduler() : scheduler_done(false) {
@@ -537,13 +670,24 @@ public:
         for (int i = 0; i < sysConfig.numCPU; i++) {
             core_quantum_remaining[i] = sysConfig.quantumCycles;
         }
+
+        // Initialize memory allocator
+        memoryAllocator = std::make_unique<FlatMemoryAllocator>(sysConfig.maxOverallMem, sysConfig.memPerFrame);
     }
 
     void addProcess(const Process& process) {
         lock_guard<mutex> lock(queue_mutex);
-        // Save current progress before adding back to queue
-        Process updated_process = process;
-        ready_queue.push(updated_process);
+        // Allocate memory for the process
+        void* memoryPtr = memoryAllocator->allocate(process.memoryAllocated);
+        if (memoryPtr) {
+            Process updated_process = process;
+            updated_process.memoryPtr = memoryPtr;
+            ready_queue.push(updated_process);
+        }
+        else {
+            // No available memory, put the process back at the end of the queue
+            ready_queue.push(process);
+        }
         cv.notify_one();
     }
 
@@ -566,8 +710,9 @@ public:
         // Reset quantum for this core
         core_quantum_remaining[core_id] = sysConfig.quantumCycles;
 
-        // Add to running processes
-        running_processes.push_back(p);
+        // Add to running processes map
+        running_processes.emplace(p.id, p);
+
         return p;
     }
 
@@ -591,20 +736,18 @@ public:
 
     void updateProcessProgress(const Process& process) {
         lock_guard<mutex> lock(queue_mutex);
-        auto it = find_if(running_processes.begin(), running_processes.end(),
-            [&process](const Process& p) { return p.id == process.id; });
+        auto it = running_processes.find(process.id);
         if (it != running_processes.end()) {
-            it->progress = process.progress;
-            it->current_instruction = process.current_instruction;
-            it->cycles_until_next_instruction = process.cycles_until_next_instruction;
+            it->second.progress = process.progress;
+            it->second.current_instruction = process.current_instruction;
+            it->second.cycles_until_next_instruction = process.cycles_until_next_instruction;
         }
     }
 
     void preemptProcess(Process& process) {
         lock_guard<mutex> lock(queue_mutex);
-        // Remove from running processes
-        auto it = find_if(running_processes.begin(), running_processes.end(),
-            [&process](const Process& p) { return p.id == process.id; });
+        // Remove from running processes map
+        auto it = running_processes.find(process.id);
         if (it != running_processes.end()) {
             running_processes.erase(it);
             active_cores--;
@@ -620,10 +763,9 @@ public:
 
     void markAsFinished(const Process& process) {
         lock_guard<mutex> lock(queue_mutex);
-        auto it = find_if(running_processes.begin(), running_processes.end(),
-            [&process](const Process& p) { return p.id == process.id; });
+        auto it = running_processes.find(process.id);
         if (it != running_processes.end()) {
-            finished_processes.push_back(*it);
+            finished_processes.push_back(it->second);
             running_processes.erase(it);
             active_cores--;
         }
@@ -634,7 +776,7 @@ public:
         lock_guard<mutex> lock(queue_mutex);
         return ready_queue.empty() && running_processes.empty();
     }
-
+    
     void displayStatus() {
         lock_guard<mutex> lock(queue_mutex);
 
@@ -646,15 +788,17 @@ public:
         cout << "Processes in queue: " << ready_queue.size() << endl;
 
         cout << "\nRunning processes:" << endl;
-        for (const auto& p : running_processes) {
-            cout << p.id << "\t(" << p.getTimeStamp() << ")\tCore: " << p.core_id
-                << "\tProgress: " << p.progress << "/" << p.burst_time << endl;
+        for (const auto& entry : running_processes) {
+            const auto& id = entry.first;
+            const auto& process = entry.second;
+            cout << process.id << "\t(" << process.getTimeStamp() << ")\tCore: " << process.core_id
+                << "\tProgress: " << process.progress << "/" << process.burst_time << endl;
         }
 
         cout << "\nFinished processes:" << endl;
-        for (const auto& p : finished_processes) {
-            cout << p.id << "\t(" << p.getTimeStamp() << ")\tFinished\t"
-                << p.burst_time << "/" << p.burst_time << endl;
+        for (const auto& process : finished_processes) {
+            cout << process.id << "\t(" << process.getTimeStamp() << ")\tFinished\t"
+                << process.burst_time << "/" << process.burst_time << endl;
         }
     }
 
@@ -663,32 +807,73 @@ public:
         ofstream outputFile(filename, ios::app);
         if (!outputFile.is_open()) {
             cerr << "Error: Could not open or create the file: " << filename << endl;
+            return;
         }
-        else {
-            int utilization = (active_cores * 100.0) / sysConfig.numCPU;
-            outputFile << "CPU Utilization: " << fixed << setprecision(2) << utilization << "%" << endl;
-            outputFile << "Active Cores: " << active_cores << endl;
-            outputFile << "Processes in queue: " << ready_queue.size() << endl;
 
-            outputFile << "\nRunning processes:" << endl;
-            for (const auto& p : running_processes) {
-                outputFile << p.id << "\t(" << p.getTimeStamp() << ")\tCore: " << p.core_id
-                    << "\tProgress: " << p.progress << "/" << p.burst_time << endl;
-            }
+        int utilization = (active_cores * 100.0) / sysConfig.numCPU;
+        outputFile << "CPU Utilization: " << fixed << setprecision(2) << utilization << "%" << endl;
+        outputFile << "Active Cores: " << active_cores << endl;
+        outputFile << "Processes in queue: " << ready_queue.size() << endl;
 
-            outputFile << "\nFinished processes:" << endl;
-            for (const auto& p : finished_processes) {
-                outputFile << p.id << "\t(" << p.getTimeStamp() << ")\tFinished\t"
-                    << p.burst_time << "/" << p.burst_time << endl;
-            }
-
-            outputFile << "--------------------------------------\n" << endl;
-            SetConsoleColor(GREEN);
-            cout << "Report generated at " << filename << "!" << endl;
-            SetConsoleColor(GREEN);
-            outputFile.close();
+        cout << "\nRunning processes:" << endl;
+        for (const auto& entry : running_processes) {
+            const auto& id = entry.first;
+            const auto& process = entry.second;
+            cout << process.id << "\t(" << process.getTimeStamp() << ")\tCore: " << process.core_id
+                << "\tProgress: " << process.progress << "/" << process.burst_time << endl;
         }
+
+        outputFile << "\nFinished processes:" << endl;
+        for (const auto& process : finished_processes) {
+            outputFile << process.id << "\t(" << process.getTimeStamp() << ")\tFinished\t"
+                << process.burst_time << "/" << process.burst_time << endl;
+        }
+
+        outputFile << "--------------------------------------\n" << endl;
+
+        SetConsoleColor(GREEN);
+        cout << "Report generated at " << filename << "!" << endl;
+        SetConsoleColor(RESET);
+        outputFile.close();
     }
+
+    void takeMemorySnapshot(uint32_t quantumCycle) {
+        lock_guard<mutex> lock(queue_mutex);
+
+        string filename = "memory_stamp_" + to_string(quantumCycle) + ".txt";
+        ofstream outputFile(filename, ios::trunc);
+        if (!outputFile.is_open()) {
+            cerr << "Error: Could not open or create the file: " << filename << endl;
+            return;
+        }
+
+        outputFile << "Timestamp: (" << getCurrentTimestamp() << ")" << endl;
+        outputFile << "Number of processes in memory: " << running_processes.size() << endl;
+
+        size_t externalFragmentation = memoryAllocator->calculateExternalFragmentation();
+        outputFile << "Total external fragmentation in KB: " << externalFragmentation << endl;
+
+        for (const auto& entry : running_processes) {
+            const auto& id = entry.first;
+            const auto& process = entry.second;
+
+            size_t start = reinterpret_cast<size_t>(process.memoryPtr) / sysConfig.memPerFrame;
+            size_t end = (reinterpret_cast<size_t>(process.memoryPtr) + process.memoryAllocated - 1) / sysConfig.memPerFrame;
+
+            outputFile << "P" << process.id << endl;
+            outputFile << end * sysConfig.memPerFrame << endl;
+            outputFile << (start * sysConfig.memPerFrame) << endl;
+        }
+
+
+        outputFile << "----start---- = 0" << endl;
+        outputFile.close();
+
+        SetConsoleColor(GREEN);
+        // cout << "Memory snapshot taken at " << filename << endl;
+        SetConsoleColor(RESET);
+    }
+
 
     bool isSchedulerDone() const {
         return scheduler_done;
@@ -732,6 +917,7 @@ void updateCPUCycles(const Scheduler& scheduler) {
 
 // Core worker function to simulate CPU execution
 void coreWorker(Scheduler& scheduler, int core_id) {
+    uint32_t quantumCounter = 0;
     while (!scheduler.isSchedulerDone()) {
         Process p = scheduler.getNextProcess(core_id);
         if (p.id.empty()) continue;
@@ -752,8 +938,12 @@ void coreWorker(Scheduler& scheduler, int core_id) {
                 scheduler.updateProcessProgress(p);
             }
 
-            // Update quantum counter
+            // Update quantum counter and take memory snapshot if needed
             scheduler.updateQuantum(core_id);
+            quantumCounter++;
+            if (quantumCounter % sysConfig.quantumCycles == 0) {
+                scheduler.takeMemorySnapshot(quantumCounter / sysConfig.quantumCycles);
+            }
 
             // Simulate execution delay
             if (sysConfig.delaysPerExec > 0) {
@@ -762,7 +952,6 @@ void coreWorker(Scheduler& scheduler, int core_id) {
                 }
             }
             else {
-                // If delaysPerExec is 0, sleep for a longer time (200 milliseconds) to allow other threads to run
                 this_thread::sleep_for(chrono::milliseconds(200));
             }
         }
@@ -801,6 +990,9 @@ bool initializeSystem() {
     cout << "Process generation frequency: " << sysConfig.batchProcessFreq << " cycles" << endl;
     cout << "Instructions per process: " << sysConfig.minInstructions << "-" << sysConfig.maxInstructions << endl;
     cout << "Delay per execution: " << sysConfig.delaysPerExec << " cycles" << endl;
+    cout << "Max overall memory: " << sysConfig.maxOverallMem << " bytes" << endl;
+    cout << "Memory per frame: " << sysConfig.memPerFrame << " bytes" << endl;
+    cout << "Memory per process: " << sysConfig.memPerProc << " bytes" << endl;
     SetConsoleColor(RESET);
 
     return true;
