@@ -853,6 +853,8 @@ public:
         size_t externalFragmentation = memoryAllocator->calculateExternalFragmentation();
         outputFile << "Total external fragmentation in KB: " << externalFragmentation << endl;
 
+        outputFile << "----end---- = " << sysConfig.maxOverallMem << endl;
+
         for (const auto& entry : running_processes) {
             const auto& id = entry.first;
             const auto& process = entry.second;
