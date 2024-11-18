@@ -15,6 +15,8 @@
 
 #include "ConsoleManager.h"
 #include "SystemConfig.h"
+#include "Instruction.h"
+#include "Process.h"
 #include <random>
 #include <unordered_map>
 
@@ -320,19 +322,6 @@ void printLogToText(const std::string& screenName) {
     }
 }
 
-
-
-// enums before the Process class definition
-enum class InstructionType {
-    PRINT,
-    SLEEP
-};
-
-struct Instruction {
-    InstructionType type;
-    int cycles;       // For SLEEP instructions, number of cycles to sleep
-};
-
 // IMemoryAllocator interface
 class IMemoryAllocator {
 public:
@@ -441,104 +430,6 @@ private:
         // Mark the memory block as deallocated
         std::fill(allocationMap.begin() + frameIndex, allocationMap.begin() + frameIndex + 1, false);
         freeFrames++;
-    }
-};
-
-// Class to represent a process with randomized execution time per instruction
-class Process {
-public:
-    string id;
-    int burst_time;
-    int progress;
-    int core_id;
-    chrono::system_clock::time_point arrival_time;
-    mt19937 rng;
-    vector<Instruction> instructions;
-    int current_instruction;
-    int cycles_until_next_instruction;
-    bool instruction_completed;
-    size_t memoryAllocated;
-    void* memoryPtr;
-
-    Process(const string& pid, int burst)
-        : id(pid),
-        burst_time(burst),
-        progress(0),
-        core_id(-1),
-        arrival_time(chrono::system_clock::now()),
-        rng(random_device{}()),
-        current_instruction(0),
-        cycles_until_next_instruction(0),
-        instruction_completed(false),
-		memoryAllocated(sysConfig.memPerProc),
-		memoryPtr(nullptr) {
-        generateInstructions();
-    }
-
-    void generateInstructions() {
-        uniform_int_distribution<> sleep_dist(1, 5); // Random sleep cycles between 1-5
-
-        for (int i = 0; i < burst_time; i++) {
-            // Alternate between PRINT and SLEEP instructions
-            if (i % 2 == 0) {
-                instructions.push_back({ InstructionType::PRINT, 1 });
-            }
-            else {
-                instructions.push_back({ InstructionType::SLEEP, sleep_dist(rng) });
-            }
-        }
-    }
-
-    // Returns true if an instruction was completed this cycle
-    bool executeInstruction() {
-        if (current_instruction >= instructions.size()) {
-            return false;
-        }
-
-        instruction_completed = false;
-
-        if (cycles_until_next_instruction > 0) {
-            cycles_until_next_instruction--;
-            return false;
-        }
-
-        auto& instruction = instructions[current_instruction];
-        switch (instruction.type) {
-        case InstructionType::PRINT:
-            // PRINT instructions complete immediately
-            instruction_completed = true;
-            break;
-        case InstructionType::SLEEP:
-            // Set cycles needed for SLEEP instruction
-            instruction_completed = true;
-            // cycles_until_next_instruction = instruction.cycles;
-            break;
-        }
-
-        // Move to next instruction if current one is complete
-        if (instruction_completed) {
-            current_instruction++;
-            progress++;
-            return true;
-        }
-
-        return false;
-    }
-
-    // Get random execution time for each instruction
-    chrono::milliseconds getInstructionTime() {
-        // Random time between 500ms and 2000ms
-        uniform_int_distribution<> dist(500, 2000);
-        return chrono::milliseconds(dist(rng));
-    }
-
-    string getTimeStamp() const {
-        time_t now = chrono::system_clock::to_time_t(arrival_time);
-        tm time_info;
-        localtime_s(&time_info, &now);
-        ostringstream oss;
-        oss << put_time(&time_info, "%m/%d/%Y %I:%M:%S%p");
-        return oss.str();
     }
 };
 
