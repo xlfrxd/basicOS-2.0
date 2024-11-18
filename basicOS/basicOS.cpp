@@ -14,10 +14,14 @@
 #define _CRT_SECURE_NO_WARNINGS
 
 #include "ConsoleManager.h"
+#include "SystemConfig.h"
 #include <random>
 #include <unordered_map>
 
 using namespace std;
+
+// Global configuration object
+SystemConfig sysConfig;
 
 atomic<uint64_t> cpu_cycles{ 0 }; // Global counter for CPU cycles
 atomic<bool> process_generator_running{ false }; // Flag to control process generator thread
@@ -316,120 +320,7 @@ void printLogToText(const std::string& screenName) {
     }
 }
 
-// Configuration structure to hold system parameters
-struct SystemConfig {
-    int numCPU;                  // Number of CPUs [1-128]
-    string schedulerType;        // "fcfs" or "rr"
-    uint32_t quantumCycles;      // Time slice for RR
-    uint32_t batchProcessFreq;   // Process generation frequency
-    uint32_t minInstructions;    // Minimum instructions per process
-    uint32_t maxInstructions;    // Maximum instructions per process
-    uint32_t delaysPerExec;      // Delay cycles between instructions
-    bool isInitialized;          // Track if system is initialized
-    size_t maxOverallMem;        // Maximum memory available in KB
-    size_t memPerFrame;          // The size of memory in KB per frame
-    size_t memPerProc;           // Fixed amount of memory for each process
 
-    SystemConfig() : isInitialized(false) {}
-
-    // Validate configuration parameters
-    bool validate() const {
-        if (numCPU < 1 || numCPU > 128) {
-            cerr << "Error: num-cpu must be between 1 and 128" << endl;
-            return false;
-        }
-
-        if (schedulerType != "fcfs" && schedulerType != "rr") {
-            cerr << "Error: scheduler must be 'fcfs' or 'rr'" << endl;
-            return false;
-        }
-
-        if (schedulerType == "rr" && quantumCycles < 1) {
-            cerr << "Error: quantum-cycles must be at least 1 for RR scheduler" << endl;
-            return false;
-        }
-
-        if (batchProcessFreq < 1) {
-            cerr << "Error: batch-process-freq must be at least 1" << endl;
-            return false;
-        }
-
-        if (minInstructions < 1 || maxInstructions < minInstructions) {
-            cerr << "Error: Invalid instruction range. min-ins must be >= 1 and <= max-ins" << endl;
-            return false;
-        }
-
-        if (maxOverallMem < memPerFrame || memPerFrame < 1) {
-            SetConsoleColor(RED);
-            cerr << "Error: Invalid memory configuration. max-overall-mem must be >= mem-per-frame, and mem-per-frame must be >= 1" << endl;
-            SetConsoleColor(RESET);
-            return false;
-        }
-
-        return true;
-    }
-};
-
-// Global configuration object
-SystemConfig sysConfig;
-
-// Function to read and parse config file
-bool readConfigFile(const string& filename) {
-    ifstream configFile(filename);
-    if (!configFile.is_open()) {
-        SetConsoleColor(RED);
-        cerr << "Error: Could not open config file: " << filename << endl;
-        SetConsoleColor(RESET);
-        return false;
-    }
-
-    string line;
-    map<string, string> configValues;
-
-    // Read config file line by line
-    while (getline(configFile, line)) {
-        stringstream ss(line);
-        string key, value;
-
-        if (ss >> key >> value) {
-            configValues[key] = value;
-        }
-    }
-
-    // Parse and validate all required parameters
-    try {
-        if (configValues.find("num-cpu") == configValues.end()) throw runtime_error("num-cpu not found");
-        if (configValues.find("scheduler") == configValues.end()) throw runtime_error("scheduler not found");
-        if (configValues.find("quantum-cycles") == configValues.end()) throw runtime_error("quantum-cycles not found");
-        if (configValues.find("batch-process-freq") == configValues.end()) throw runtime_error("batch-process-freq not found");
-        if (configValues.find("min-ins") == configValues.end()) throw runtime_error("min-ins not found");
-        if (configValues.find("max-ins") == configValues.end()) throw runtime_error("max-ins not found");
-        if (configValues.find("delays-per-exec") == configValues.end()) throw runtime_error("delays-per-exec not found");
-        if (configValues.find("max-overall-mem") == configValues.end()) throw runtime_error("max-overall-mem not found");
-        if (configValues.find("mem-per-frame") == configValues.end()) throw runtime_error("mem-per-frame not found");
-        if (configValues.find("mem-per-proc") == configValues.end()) throw runtime_error("mem-per-proc not found");
-
-
-        sysConfig.numCPU = stoi(configValues["num-cpu"]);
-        sysConfig.schedulerType = configValues["scheduler"];
-        sysConfig.quantumCycles = stoul(configValues["quantum-cycles"]);
-        sysConfig.batchProcessFreq = stoul(configValues["batch-process-freq"]);
-        sysConfig.minInstructions = stoul(configValues["min-ins"]);
-        sysConfig.maxInstructions = stoul(configValues["max-ins"]);
-        sysConfig.delaysPerExec = stoul(configValues["delays-per-exec"]);
-        sysConfig.maxOverallMem = stoul(configValues["max-overall-mem"]);
-        sysConfig.memPerFrame = stoul(configValues["mem-per-frame"]);
-        sysConfig.memPerProc = stoul(configValues["mem-per-proc"]);
-    }
-    catch (const exception& e) {
-        SetConsoleColor(RED);
-        cerr << "Error parsing config file: " << e.what() << endl;
-        SetConsoleColor(RESET);
-        return false;
-    }
-
-    return sysConfig.validate();
-}
 
 // enums before the Process class definition
 enum class InstructionType {
@@ -973,7 +864,7 @@ bool initializeSystem() {
         return true;
     }
 
-    if (!readConfigFile("config.txt")) {
+    if (!readConfigFile("config.txt", sysConfig)) {
         SetConsoleColor(RED);
         cerr << "Failed to initialize system. Check config.txt file." << endl;
         SetConsoleColor(RESET);
