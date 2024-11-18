@@ -140,9 +140,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="basicOS.cpp" />
+    <ClCompile Include="Instruction.cpp" />
+    <ClCompile Include="Process.cpp" />
+    <ClCompile Include="SystemConfig.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ConsoleManager.h" />
+    <ClInclude Include="Instruction.h" />
+    <ClInclude Include="Process.h" />
+    <ClInclude Include="SystemConfig.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

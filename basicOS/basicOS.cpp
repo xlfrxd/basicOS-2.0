@@ -460,10 +460,10 @@ public:
     void addProcess(const Process& process) {
         lock_guard<mutex> lock(queue_mutex);
         // Allocate memory for the process
-        void* memoryPtr = memoryAllocator->allocate(process.memoryAllocated);
+        void* memoryPtr = memoryAllocator->allocate(process.getMemoryAllocated());
         if (memoryPtr) {
             Process updated_process = process;
-            updated_process.memoryPtr = memoryPtr;
+            updated_process.setMemoryPtr(memoryPtr);
             ready_queue.push(updated_process);
         }
         else {
@@ -486,14 +486,14 @@ public:
 
         Process p = ready_queue.front();
         ready_queue.pop();
-        p.core_id = core_id;
+        p.setCoreId(core_id);
         active_cores++;
 
         // Reset quantum for this core
         core_quantum_remaining[core_id] = sysConfig.quantumCycles;
 
         // Add to running processes map
-        running_processes.emplace(p.id, p);
+        running_processes.emplace(p.getId(), p);
 
         return p;
     }
@@ -518,24 +518,24 @@ public:
 
     void updateProcessProgress(const Process& process) {
         lock_guard<mutex> lock(queue_mutex);
-        auto it = running_processes.find(process.id);
+        auto it = running_processes.find(process.getId());
         if (it != running_processes.end()) {
-            it->second.progress = process.progress;
-            it->second.current_instruction = process.current_instruction;
-            it->second.cycles_until_next_instruction = process.cycles_until_next_instruction;
+            it->second.setProgress(process.getProgress());
+            it->second.setCurrentInstruction(process.getCurrentInstruction());
+            it->second.setCyclesUntilNextInstruction(process.getCyclesUntilNextInstruction());
         }
     }
 
     void preemptProcess(Process& process) {
         lock_guard<mutex> lock(queue_mutex);
         // Remove from running processes map
-        auto it = running_processes.find(process.id);
+        auto it = running_processes.find(process.getId());
         if (it != running_processes.end()) {
             running_processes.erase(it);
             active_cores--;
         }
         // Add back to ready queue if not finished
-        if (process.progress < process.burst_time) {
+        if (process.getProgress() < process.getBurstTime()) {
             ready_queue.push(process);
         }
         else {
@@ -545,7 +545,7 @@ public:
 
     void markAsFinished(const Process& process) {
         lock_guard<mutex> lock(queue_mutex);
-        auto it = running_processes.find(process.id);
+        auto it = running_processes.find(process.getId());
         if (it != running_processes.end()) {
             finished_processes.push_back(it->second);
             running_processes.erase(it);
@@ -573,14 +573,14 @@ public:
         for (const auto& entry : running_processes) {
             const auto& id = entry.first;
             const auto& process = entry.second;
-            cout << process.id << "\t(" << process.getTimeStamp() << ")\tCore: " << process.core_id
-                << "\tProgress: " << process.progress << "/" << process.burst_time << endl;
+            cout << process.getId() << "\t(" << process.getTimeStamp() << ")\tCore: " << process.getCoreId()
+                << "\tProgress: " << process.getProgress() << "/" << process.getBurstTime() << endl;
         }
 
         cout << "\nFinished processes:" << endl;
         for (const auto& process : finished_processes) {
-            cout << process.id << "\t(" << process.getTimeStamp() << ")\tFinished\t"
-                << process.burst_time << "/" << process.burst_time << endl;
+            cout << process.getId() << "\t(" << process.getTimeStamp() << ")\tFinished\t"
+                << process.getBurstTime() << "/" << process.getBurstTime() << endl;
         }
     }
 
@@ -601,14 +601,14 @@ public:
         for (const auto& entry : running_processes) {
             const auto& id = entry.first;
             const auto& process = entry.second;
-            cout << process.id << "\t(" << process.getTimeStamp() << ")\tCore: " << process.core_id
-                << "\tProgress: " << process.progress << "/" << process.burst_time << endl;
+            cout << process.getId() << "\t(" << process.getTimeStamp() << ")\tCore: " << process.getCoreId()
+                << "\tProgress: " << process.getProgress() << "/" << process.getBurstTime() << endl;
         }
 
         outputFile << "\nFinished processes:" << endl;
         for (const auto& process : finished_processes) {
-            outputFile << process.id << "\t(" << process.getTimeStamp() << ")\tFinished\t"
-                << process.burst_time << "/" << process.burst_time << endl;
+            outputFile << process.getId() << "\t(" << process.getTimeStamp() << ")\tFinished\t"
+                << process.getBurstTime() << "/" << process.getBurstTime() << endl;
         }
 
         outputFile << "--------------------------------------\n" << endl;
@@ -641,10 +641,10 @@ public:
             const auto& id = entry.first;
             const auto& process = entry.second;
 
-            size_t start = reinterpret_cast<size_t>(process.memoryPtr) / sysConfig.memPerFrame;
-            size_t end = (reinterpret_cast<size_t>(process.memoryPtr) + process.memoryAllocated - 1) / sysConfig.memPerFrame;
+            size_t start = reinterpret_cast<size_t>(process.getMemoryPtr()) / sysConfig.memPerFrame;
+            size_t end = (reinterpret_cast<size_t>(process.getMemoryPtr()) + process.getMemoryAllocated() - 1) / sysConfig.memPerFrame;
 
-            outputFile << "P" << process.id << endl;
+            outputFile << "P" << process.getId() << endl;
             outputFile << end * sysConfig.memPerFrame << endl;
             outputFile << (start * sysConfig.memPerFrame) << endl;
         }
@@ -704,10 +704,10 @@ void coreWorker(Scheduler& scheduler, int core_id) {
     uint32_t quantumCounter = 0;
     while (!scheduler.isSchedulerDone()) {
         Process p = scheduler.getNextProcess(core_id);
-        if (p.id.empty()) continue;
+        if (p.getId().empty()) continue;
 
         bool was_preempted = false;
-        while (p.progress < p.burst_time && !was_preempted) {
+        while (p.getProgress() < p.getBurstTime() && !was_preempted) {
             // Check for preemption
             if (scheduler.shouldPreempt(core_id)) {
                 scheduler.preemptProcess(p);
@@ -740,7 +740,7 @@ void coreWorker(Scheduler& scheduler, int core_id) {
             }
         }
 
-        if (!was_preempted && p.progress >= p.burst_time) {
+        if (!was_preempted && p.getProgress() >= p.getBurstTime()) {
             scheduler.markAsFinished(p);
         }
     }

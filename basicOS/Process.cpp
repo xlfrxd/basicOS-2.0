@@ -85,3 +85,30 @@ std::string Process::getTimeStamp() const {
     oss << std::put_time(&time_info, "%m/%d/%Y %I:%M:%S%p");
     return oss.str();
 }
+
+// Getters
+const std::string& Process::getId() const { return id; }
+int Process::getBurstTime() const { return burst_time; }
+int Process::getProgress() const { return progress; }
+int Process::getCoreId() const { return core_id; }
+const std::vector<Instruction>& Process::getInstructions() const { return instructions; }
+int Process::getCurrentInstruction() const { return current_instruction; }
+int Process::getCyclesUntilNextInstruction() const { return cycles_until_next_instruction; }
+bool Process::isInstructionCompleted() const { return instruction_completed; }
+size_t Process::getMemoryAllocated() const { return memoryAllocated; }
+void* Process::getMemoryPtr() const { return memoryPtr; }
+const std::chrono::system_clock::time_point& Process::getArrivalTime() const { return arrival_time; }
+
+// Setters
+void Process::setId(const std::string& pid) { id = pid; }
+void Process::setBurstTime(int burst) { burst_time = burst; }
+void Process::setProgress(int progress) { this->progress = progress; }
+void Process::setCoreId(int coreId) { core_id = coreId; }
+void Process::setInstructions(const std::vector<Instruction>& instructions) { this->instructions = instructions; }
+void Process::setCurrentInstruction(int currentInstruction) { current_instruction = currentInstruction; }
+void Process::setCyclesUntilNextInstruction(int cycles) { cycles_until_next_instruction = cycles; }
+void Process::setInstructionCompleted(bool completed) { instruction_completed = completed; }
+void Process::setMemoryAllocated(size_t memory) { memoryAllocated = memory; }
+void Process::setMemoryPtr(void* ptr) { memoryPtr = ptr; }
+void Process::setArrivalTime(const std::chrono::system_clock::time_point& arrival) { arrival_time = arrival; }
+

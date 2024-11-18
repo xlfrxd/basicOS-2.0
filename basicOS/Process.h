@@ -17,6 +17,33 @@ public:
     std::chrono::milliseconds getInstructionTime();
     std::string getTimeStamp() const;
 
+    // Getters
+    const std::string& getId() const;
+    int getBurstTime() const;
+    int getProgress() const;
+    int getCoreId() const;
+    const std::vector<Instruction>& getInstructions() const;
+    int getCurrentInstruction() const;
+    int getCyclesUntilNextInstruction() const;
+    bool isInstructionCompleted() const;
+    size_t getMemoryAllocated() const;
+    void* getMemoryPtr() const;
+    const std::chrono::system_clock::time_point& getArrivalTime() const;
+
+    // Setters
+    void setId(const std::string& pid);
+    void setBurstTime(int burst);
+    void setProgress(int progress);
+    void setCoreId(int coreId);
+    void setInstructions(const std::vector<Instruction>& instructions);
+    void setCurrentInstruction(int currentInstruction);
+    void setCyclesUntilNextInstruction(int cycles);
+    void setInstructionCompleted(bool completed);
+    void setMemoryAllocated(size_t memory);
+    void setMemoryPtr(void* ptr);
+    void setArrivalTime(const std::chrono::system_clock::time_point& arrival);
+
+private:
     std::string id;                    // Process ID
     int burst_time;                    // Total burst time
     int progress;                      // Current progress in burst time
