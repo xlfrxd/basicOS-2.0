@@ -1,20 +1,20 @@
 #pragma once
-#ifndef INSTRUCTION_H
-#define INSTRUCTION_H
+class Instruction
+{
+public:
+	enum CommandType
+	{
+		IO,
+		PRINT
+	};
 
-#include <string>
+	Instruction(int pid, CommandType commandType);
+	CommandType getCommandType();
+	virtual void execute();
 
-enum class InstructionType {
-    PRINT,
-    SLEEP
+protected:
+	int pid;
+	CommandType commandType;
 };
 
-struct Instruction {
-    InstructionType type;
-    int cycles;  // For SLEEP instructions, number of cycles to sleep
 
-    Instruction(InstructionType type, int cycles = 0)
-        : type(type), cycles(cycles) {}
-};
-
-#endif
