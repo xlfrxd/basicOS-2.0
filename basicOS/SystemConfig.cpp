@@ -1,5 +1,6 @@
 #include "SystemConfig.h"
 #include <sstream>
+#include <random>
 
 SystemConfig::SystemConfig() :
     isInitialized(false) {}
@@ -69,7 +70,8 @@ bool readConfigFile(const std::string& filename, SystemConfig& config) {
         if (configValues.find("delays-per-exec") == configValues.end()) throw std::runtime_error("delays-per-exec not found");
         if (configValues.find("max-overall-mem") == configValues.end()) throw std::runtime_error("max-overall-mem not found");
         if (configValues.find("mem-per-frame") == configValues.end()) throw std::runtime_error("mem-per-frame not found");
-        if (configValues.find("mem-per-proc") == configValues.end()) throw std::runtime_error("mem-per-proc not found");
+        if (configValues.find("min-mem-per-proc") == configValues.end()) throw std::runtime_error("min-mem-per-proc not found");
+        if (configValues.find("max-mem-per-proc") == configValues.end()) throw std::runtime_error("max-mem-per-proc not found");
 
         config.numCPU = std::stoi(configValues["num-cpu"]);
         config.schedulerType = configValues["scheduler"];
@@ -80,7 +82,10 @@ bool readConfigFile(const std::string& filename, SystemConfig& config) {
         config.delaysPerExec = std::stoul(configValues["delays-per-exec"]);
         config.maxOverallMem = std::stoul(configValues["max-overall-mem"]);
         config.memPerFrame = std::stoul(configValues["mem-per-frame"]);
-        config.memPerProc = std::stoul(configValues["mem-per-proc"]);
+        std::random_device rd;  // Random device to seed the generator
+        std::mt19937 gen(rd()); // Mersenne Twister engine
+        std::uniform_int_distribution<> dist(std::stoi(configValues["min-mem-per-proc"]), std::stoi(configValues["max-mem-per-proc"]));
+        config.memPerProc = dist(gen); // Input process mem
     }
     catch (const std::exception& e) {
         std::cerr << "Error parsing config file: " << e.what() << std::endl;
