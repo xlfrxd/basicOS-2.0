@@ -335,6 +335,85 @@ public:
     virtual ~IMemoryAllocator() = default;  // Ensure a virtual destructor for proper cleanup
 };
 
+class PagingAllocator : public IMemoryAllocator {
+public:
+    PagingAllocator(size_t maxMemorySize);
+    void* allocate(Process* process) override;
+    void deallocate(Process* process) override;
+    void visualizeMemory() const override;
+
+private:
+    size_t maxMemorySize;
+    size_t numFrames;
+    std::unordered_map<size_t, size_t> frameMap;
+    std::vector<size_t> freeFrameList;
+
+    size_t allocateFrames(size_t numFrames, size_t processId, const std::vector<size_t>& pageSizes);
+    void deallocateFrames(size_t numFrames, size_t frameIndex, const std::vector<size_t>& pageSizes);
+};
+
+PagingAllocator::PagingAllocator(size_t maxMemorySize)
+    : maxMemorySize(maxMemorySize), numFrames(maxMemorySize) {
+    for (size_t i = 0; i < numFrames; ++i) {
+        freeFrameList.push_back(i);
+    }
+}
+
+void* PagingAllocator::allocate(Process* process) {
+    size_t processID = process->getId();
+    size_t numFramesNeeded = process->getNumPages();
+    if (numFramesNeeded > freeFrameList.size()) {
+        std::cerr << "Memory allocation failed. Not enough free frame. \n";
+        return nullptr;
+    }
+}
+
+void PagingAllocator::deallocate(Process* process) {
+    size_t processId = process->getId();
+
+    auto it = std::find_if(frameMap.begin(), frameMap.end(),
+        [processId](const auto& entry) { return entry.second == processId; });
+}
+
+void PagingAllocator::visualizeMemory() const {
+    std:cout << " Memory Visualization:\n";
+    for (size_t frameIndex = 0; frameIndex < numFrames; ++frameIndex) {
+        auto it = frameMap.find(frameIndex);
+        if (it != frameMap.end()) {
+            std::cout << "Frame " << frameIndex << " -> Process " << it->second << "\n";
+        }
+        else {
+            std::cout << " Frame " << frameIndex << " -> Free\n";
+        }
+    }
+    std::cout << "--------------------------\n";
+}
+
+size_t PagingAllocator::allocateFrames(size_t numFrames, size_t processId, const std::vector<size_t>& pageSizes) {
+    size_t frameIndex = freeFrameList.back();
+    freeFrameList.pop_back();
+    
+    for (size_t i = 0; i < numFrames; ++i) {
+        freeFrameList[frameIndex + i] = processId;
+    }
+
+    return frameIndex;
+}
+
+void PagingAllocator::deallocateFrames(size_t numFrames, size_t frameIndex, const std::vector<size_t>& pageSizes) {
+    for (size_t i = 0; i < numFrames; ++i) {
+        frameMap.erase(frameIndex + i);
+    }
+
+    for (size_t i = 0; i < numFrames; ++i) {
+        freeFrameList.push_back(frameIndex + i);
+    }
+}
+
+
+
+
+
 
 class FlatMemoryAllocator : public IMemoryAllocator {
 public:
