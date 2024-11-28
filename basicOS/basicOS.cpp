@@ -6,22 +6,22 @@
   Nikolai Santiago
   Alfred Victoria
 */
-
-using namespace std;
-
 #include <iostream>
 #include <cctype>
 #include <vector>
 #include <ctime>
+#include <fstream>
+#include <random>
+
 #include "ConsoleManager.h"
 #include "InputCommands.h"
 #include "ProcessScreen.h"
 #include "ConsoleScreen.h"
 #include "Scheduler.h"
 #include "FlatMemoryAllocator.h"
-#include <fstream>
-#include <random>
 #include "PagingAllocator.h"
+
+using namespace std;
 
 int main()
 {

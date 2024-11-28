@@ -1,7 +1,9 @@
 #pragma once
 
-#include "Instruction.h"
 #include <string>
+
+#include "Instruction.h"
+
 class PrintCommand : public Instruction
 {
 public:

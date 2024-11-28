@@ -1,18 +1,16 @@
-#include "Process.h"
-#include <fstream> 
-#include <filesystem> // for folder creation
-#include "PrintCommand.h"
+#include <fstream>
 #include <vector>
 #include <iostream>
 #include <thread>
 #include <chrono>
 #include <fstream>
 #include <random>
+
+#include "Process.h"
+#include "PrintCommand.h"
 #include "ConsoleManager.h"
 
 using namespace std;
-
-namespace fs = std::filesystem; // alias for convenience
 
 Process::Process(string processName, int currentLine, string timestamp, size_t memoryRequired)
     : ProcessScreen(processName), cpuCoreID(-1), commandCounter(0), currentState(ProcessState::READY)
@@ -30,8 +28,6 @@ Process::Process(string processName, int currentLine, string timestamp, size_t m
 		this->printCommands.push_back(PrintCommand(i, "Printing from " + processName + " " + std::to_string(i)));
 
 	}
-
-	
 }
 
 void Process::setMemoryUsage(size_t memoryUsage)

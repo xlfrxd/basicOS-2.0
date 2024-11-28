@@ -1,15 +1,17 @@
-#include "Scheduler.h"
-#include "ConsoleManager.h"
-#include "Process.h"
-#include "FlatMemoryAllocator.h"
 #include <iostream>
 #include <chrono>
 #include <thread>
 #include <condition_variable>
 #include <mutex>
 #include <vector>
+
+#include "Scheduler.h"
+#include "ConsoleManager.h"
+#include "Process.h"
+#include "FlatMemoryAllocator.h"
 #include "PagingAllocator.h"
 
+using namespace std;
 
 Scheduler::Scheduler(int numCores)
     : numCores(numCores), schedulerRunning(false),
@@ -55,37 +57,61 @@ void Scheduler::start() {
 
                 void* memoryPtr = nullptr;
                 bool isFlatMemory = ConsoleManager::getInstance()->getMinMemPerProc() == ConsoleManager::getInstance()->getMaxMemPerProc();
-                bool isPagingRunning = false;
-
-                if (process->getIsRunning() == false) {
-                    if (isFlatMemory) {
-                        memoryPtr = FlatMemoryAllocator::getInstance()->allocate(process->getMemoryRequired(), process->getProcessName(), process);
-                    }
-                    else {
-                        memoryPtr = PagingAllocator::getInstance()->allocate(process);
-                    }
-                }
-                else {
-                    if (isFlatMemory) {
-                        memoryPtr = FlatMemoryAllocator::getInstance()->getMemoryPtr(process->getMemoryRequired(), process->getProcessName(), process);
-                    }
-                    else {
-                        memoryPtr = PagingAllocator::getInstance()->isProcessAllocated(process->getProcessName());
-                    }
-                }
+                bool processInMemory = false;
 
 
                 if (isFlatMemory) {
-                    if (memoryPtr) {
-                        coresAvailable--;
-                        coresUsed++;
-                        process->setCPUCoreID(i);
-                        workerFunction(i, process, memoryPtr);
+                    // if process is in memory, get the memory ptr
+                    void* tempPtr = FlatMemoryAllocator::getInstance()->getMemoryPtr(process->getMemoryRequired(), process->getProcessName(), process);
+
+                    if (tempPtr) {
+                        memoryPtr = tempPtr;
                     }
 
+                    // allocate the memory
                     else {
+                        memoryPtr = FlatMemoryAllocator::getInstance()->allocate(process->getMemoryRequired(), process->getProcessName(), process);
+                    }
+                }
 
-                        // add to backing store
+
+
+                // paging
+                else {
+                    // check if process is in memory
+                    processInMemory = PagingAllocator::getInstance()->isProcessInMemory(process->getProcessName());
+
+                    if (processInMemory) {
+
+                        //process->setIsRunning(true);
+
+                    }
+                    // allocate the memory
+                    else {
+                        processInMemory = PagingAllocator::getInstance()->allocate(process);
+
+
+                    }
+                }
+
+
+                if (memoryPtr || processInMemory) {
+                    coresAvailable--;
+                    coresUsed++;
+                    process->setCPUCoreID(i);
+                    process->setIsRunning(true);
+                    workerFunction(i, process, memoryPtr);
+                }
+
+                // if the process was failed to be allocated
+                else {
+                    if (algorithm == "fcfs") {
+                        addToFrontOfProcessQueue(process);
+                    }
+                    else {
+                        coresAvailable--;
+                        coresUsed++;
+                        // if flat memory
                         if (isFlatMemory) {
                             // get oldest process
                             std::shared_ptr<Process> oldestProcess = FlatMemoryAllocator::getInstance()->findOldestProcess();
@@ -93,79 +119,58 @@ void Scheduler::start() {
                             // get memory ptr of the oldest process
                             void* oldestMemoryPtr = FlatMemoryAllocator::getInstance()->getMemoryPtr(oldestProcess->getMemoryRequired(), oldestProcess->getProcessName(), oldestProcess);
 
-
                             // deallocate the oldest process
                             FlatMemoryAllocator::getInstance()->deallocate(oldestMemoryPtr, oldestProcess);
 
                             // put the oldest process back to backing store
                             FlatMemoryAllocator::getInstance()->allocateFromBackingStore(oldestProcess);
 
-                            // if the process is in backing store, remove it from the backing store
+                            // if the new process is in backing store, remove it from the backing store
                             FlatMemoryAllocator::getInstance()->findAndRemoveProcessFromBackingStore(process);
+
                             // allocate the new process
                             void* memoryPtr = FlatMemoryAllocator::getInstance()->allocate(process->getMemoryRequired(), process->getProcessName(), process);
 
                             if (memoryPtr) {
                                 process->setCPUCoreID(i);
+                                process->setIsRunning(true);
                                 workerFunction(i, process, memoryPtr);
                             }
                         }
-                    }
-                }
-                else {
-                    /*    cout << "PAGING: " << isPagingRunning << endl;*/
-                    cout << "MEMORY: " << memoryPtr << endl;
-
-                    if (memoryPtr) {
-                        coresAvailable--;
-                        coresUsed++;
-                        process->setCPUCoreID(i);
-                        workerFunction(i, process, memoryPtr);
-                    }
-                    else {
-                        // get oldest process
-
-
-                        string oldestProcessStr = PagingAllocator::getInstance()->findOldestProcess();
-                        std::shared_ptr<Process> oldestProcess = ConsoleManager::getInstance()->getScreenByProcessName(oldestProcessStr);
-
-                        /*if (oldestProcess) {
-                            cout << "Existing" << endl;
-                        }
+                        // if paging
                         else {
-                            cout << "NOT EXISTING" << endl;
-                        }*/
+                            // get oldest process
+                            string oldestProcessStr = PagingAllocator::getInstance()->findOldestProcess();
+                            std::shared_ptr<Process> oldestProcess = ConsoleManager::getInstance()->getScreenByProcessName(oldestProcessStr);
 
-                        /*cout << "OLDEST: " << oldestProcessStr << endl;*/
+                            // deallocate the oldest process
+                            PagingAllocator::getInstance()->deallocate(oldestProcess);
 
-                        PagingAllocator::getInstance()->deallocate(oldestProcess);
+                            // put the oldest process back to backing store
+                            PagingAllocator::getInstance()->allocateFromBackingStore(oldestProcess);
 
-                        PagingAllocator::getInstance()->allocateFromBackingStore(oldestProcess);
+                            // if the new process is in backing store, remove it from the backing store
+                            PagingAllocator::getInstance()->findAndRemoveProcessFromBackingStore(process);
 
-                        PagingAllocator::getInstance()->findAndRemoveProcessFromBackingStore(process);
+                            // allocate the new process
+                            bool processInMemory = PagingAllocator::getInstance()->allocate(process);
 
-                        void* memoryPtr = PagingAllocator::getInstance()->allocate(process);
-
-                        if (memoryPtr) {
-                            process->setCPUCoreID(i);
-                            workerFunction(i, process, memoryPtr);
+                            if (processInMemory) {
+                                process->setCPUCoreID(i);
+                                workerFunction(i, process, memoryPtr);
+                            }
                         }
+
                     }
 
-
-
                 }
-
 
                 // Update core tracking after process completion
                 {
                     std::lock_guard<std::mutex> lock(processQueueMutex);
 
 
-                    if (memoryPtr) {
-                        coresAvailable++;
-                        coresUsed--;
-                    }
+
 
                     --activeThreads; // Decrement active thread count
                     if (processQueue.empty() && activeThreads == 0) {
@@ -234,6 +239,23 @@ void Scheduler::workerFunction(int core, std::shared_ptr<Process> process, void*
                 idleCpuTicks += coresAvailable;
             }
         }
+
+        // subtract cores utilization
+        {
+            std::lock_guard<std::mutex> lock(processQueueMutex);
+            coresAvailable++;
+            coresUsed--;
+        }
+
+        // deallocate memory
+        if (ConsoleManager::getInstance()->getMinMemPerProc() == ConsoleManager::getInstance()->getMaxMemPerProc()) {
+            FlatMemoryAllocator::getInstance()->deallocate(memoryPtr, process);
+        }
+        else {
+            PagingAllocator::getInstance()->deallocate(process);
+        }
+
+
     }
 
     else if (algorithm == "rr") {
@@ -266,13 +288,14 @@ void Scheduler::workerFunction(int core, std::shared_ptr<Process> process, void*
             processQueue.push(process);  // Re-queue the unfinished process
             processQueueCondition.notify_one();
         }
-        else {
-            if (ConsoleManager::getInstance()->getMinMemPerProc() != ConsoleManager::getInstance()->getMaxMemPerProc()) {
-                PagingAllocator::getInstance()->deallocate(process);
-            }
-            else {
-                FlatMemoryAllocator::getInstance()->deallocate(memoryPtr, process);  // Deallocate memory
-            }
+
+
+        process->setIsRunning(false);
+        // subtract cores utilization
+        {
+            std::lock_guard<std::mutex> lock(processQueueMutex);
+            coresAvailable++;
+            coresUsed--;
         }
 
     }
@@ -290,6 +313,26 @@ void Scheduler::addProcessToQueue(std::shared_ptr<Process> process) {
     }
     processQueueCondition.notify_one();  // Notify one waiting thread
 }
+
+void Scheduler::addToFrontOfProcessQueue(std::shared_ptr<Process> process) {
+    std::lock_guard<std::mutex> lock(processQueueMutex);
+
+    // Create a temporary queue and add the new process at the front
+    std::queue<std::shared_ptr<Process>> tempQueue;
+    tempQueue.push(process);
+
+    // Add the remaining processes to the temporary queue
+    while (!processQueue.empty()) {
+        tempQueue.push(processQueue.front());
+        processQueue.pop();
+    }
+
+    // Replace the original queue with the temporary queue
+    processQueue = std::move(tempQueue);
+
+    processQueueCondition.notify_all();  // Notify all waiting threads
+}
+
 
 Scheduler* Scheduler::getInstance() {
     if (scheduler == nullptr) {

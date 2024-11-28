@@ -1,11 +1,12 @@
-using namespace std;
+#include <iostream>
 
 #include "InputCommands.h"
-#include <iostream>
 #include "ConsoleManager.h"
 #include "FlatMemoryAllocator.h"
 #include "PagingAllocator.h"
 #include "Process.h"
+
+using namespace std;
 
 InputCommands::InputCommands()
 {
@@ -98,7 +99,7 @@ void InputCommands::handleMainConsoleInput()
         }
         else if (command == "scheduler-test") {
             if (!Scheduler::getInstance()->getSchedulerTestRunning()) {
-                cout << ConsoleColor::GREEN << ConsoleManager::getInstance()->getSchedulerConfig() << "scheduler is now running." << ConsoleColor::RESET << endl;
+                cout << ConsoleColor::GREEN << ConsoleManager::getInstance()->getSchedulerConfig() << " scheduler is now running." << ConsoleColor::RESET << endl;
                 Scheduler::getInstance()->setSchedulerTestRunning(true);
                 // create batchProcessFrequency number of processes
                 std::thread schedulerTestThread([&] {
@@ -122,7 +123,6 @@ void InputCommands::handleMainConsoleInput()
         }
         else if (command == "report-util") {
             ConsoleManager::getInstance()->reportUtil();
-			cout << ConsoleColor::GREEN << "Report generated." << ConsoleColor::RESET << endl;
         }
         else if (command == "clear") {
             system("cls");
@@ -168,7 +168,12 @@ void InputCommands::handleMainConsoleInput()
                 }
                 else if (screenCommand == "-ls") {
                     ConsoleManager::getInstance()->displayProcessList();
-                    FlatMemoryAllocator::getInstance()->visualizeBackingStore();
+                    if (ConsoleManager::getInstance()->getMinMemPerProc() == ConsoleManager::getInstance()->getMaxMemPerProc()) {
+                        FlatMemoryAllocator::getInstance()->visualizeBackingStore();
+                    }
+                    else {
+                        PagingAllocator::getInstance()->visualizeBackingStore();
+                    }
                 }
                 else {
                     cout << ConsoleColor::RED << "Invalid command" << ConsoleColor::RESET << endl;

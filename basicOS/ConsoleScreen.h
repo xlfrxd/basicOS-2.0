@@ -1,5 +1,7 @@
 #pragma once
+
 #include<string>
+
 #include "ProcessScreen.h"
 
 using namespace std;

@@ -1,5 +1,6 @@
-#include "PrintCommand.h"
 #include <iostream>
+
+#include "PrintCommand.h"
 
 PrintCommand::PrintCommand(int pid, std::string text) : Instruction(pid, CommandType::PRINT)
 {

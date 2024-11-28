@@ -1,11 +1,13 @@
 #pragma once
-#include "Process.h"
+
 #include <unordered_map>
-#include "Scheduler.h"
 #include <string>
 #include <sstream>
 #include <fstream>
+
+#include "Process.h"
 #include "ConsoleColor.h"
+#include "Scheduler.h"
 
 const string MAIN_CONSOLE = "MAIN_CONSOLE";
 
@@ -107,7 +109,7 @@ private:
 	size_t memPerFrame = 0;
 	size_t minMemPerProc = 0;
 	size_t maxMemPerProc = 0;
-	int numPages = 0;
+	size_t numPages = 0;
 
 
 	// declare consoles 

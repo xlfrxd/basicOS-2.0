@@ -1,8 +1,10 @@
 #pragma once
-#include "ProcessScreen.h"
-#include "PrintCommand.h"
+
 #include <vector>
 #include <fstream>
+
+#include "ProcessScreen.h"
+#include "PrintCommand.h"
 
 using namespace std;	
 

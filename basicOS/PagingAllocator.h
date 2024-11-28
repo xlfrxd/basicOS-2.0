@@ -1,8 +1,10 @@
 #pragma once
-#include "Process.h"
+
 #include <unordered_map>
 #include <map>
 #include <queue>
+
+#include "Process.h"
 
 class PagingAllocator
 {
@@ -13,7 +15,7 @@ public:
 
 	static PagingAllocator* getInstance();
 
-	void* allocate(std::shared_ptr<Process> process);
+	bool allocate(std::shared_ptr<Process> process);
 	void deallocate(std::shared_ptr<Process> process);
 	void visualizeMemory();
 	size_t calculateUsedFrames();
@@ -23,10 +25,11 @@ public:
 	void findAndRemoveProcessFromBackingStore(std::shared_ptr<Process> process);
 	void setUsedMemory(size_t usedMemory);
 	std::string findOldestProcess();
-	void* isProcessAllocated(const std::string& processName);
+	bool isProcessInMemory(const std::string& processName);
+	void visualizeBackingStore();
 
-	//size_t getNumPagedIn() const;
-	//size_t getNumPagedOut() const;
+	size_t getNumPagedIn() const;
+	size_t getNumPagedOut() const;
 
 private:
 	static PagingAllocator* pagingAllocator;
@@ -44,6 +47,6 @@ private:
 	std::vector<shared_ptr<Process>> backingStore;
 	std::queue<shared_ptr<Process>> allocationMap;
 
-	//size_t numPagedIn = 0;  // Tracks the number of pages paged into memory
-	//size_t numPagedOut = 0; // Tracks the number of pages paged out of memory
+	size_t numPagedIn = 0;  // Tracks the number of pages paged into memory
+	size_t numPagedOut = 0; // Tracks the number of pages paged out of memory
 };

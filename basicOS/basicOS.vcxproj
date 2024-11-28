@@ -133,13 +133,13 @@
     <ClCompile Include="ConsoleManager.cpp" />
     <ClCompile Include="FlatMemoryAllocator.cpp" />
     <ClCompile Include="Instruction.cpp" />
-    <ClCompile Include="InputManager.cpp" />
+    <ClCompile Include="InputHandler.cpp" />
     <ClCompile Include="basicOS.cpp" />
     <ClCompile Include="ConsoleScreen.cpp" />
     <ClCompile Include="PagingAllocator.cpp" />
     <ClCompile Include="PrintCommand.cpp" />
     <ClCompile Include="Scheduler.cpp" />
-    <ClCompile Include="Screen.cpp" />
+    <ClCompile Include="Process.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ConsoleColor.h" />
