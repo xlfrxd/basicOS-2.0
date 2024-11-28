@@ -763,6 +763,9 @@ void generateTestProcesses(Scheduler& scheduler) {
 
         string process_id = "p" + to_string(process_counter++);
         Process new_process(process_id, num_instructions);
+        
+        // Set required pages for memory
+        new_process.setNumPages(std::ceil(static_cast<double>(sysConfig.memPerProc) / static_cast<double>(sysConfig.memPerFrame)));
 
         scheduler.addProcess(new_process);
 

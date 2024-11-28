@@ -15,7 +15,8 @@ Process::Process(const std::string& pid, int burst)
     cycles_until_next_instruction(0),
     instruction_completed(false),
     memoryAllocated(0),
-    memoryPtr(nullptr) {
+    memoryPtr(nullptr),
+    pagesReq(0) {
     generateInstructions();
 }
 
@@ -98,7 +99,7 @@ bool Process::isInstructionCompleted() const { return instruction_completed; }
 size_t Process::getMemoryAllocated() const { return memoryAllocated; }
 void* Process::getMemoryPtr() const { return memoryPtr; }
 const std::chrono::system_clock::time_point& Process::getArrivalTime() const { return arrival_time; }
-
+int Process::getNumPages() const { return pagesReq; }
 // Setters
 void Process::setId(const std::string& pid) { id = pid; }
 void Process::setBurstTime(int burst) { burst_time = burst; }
@@ -111,4 +112,4 @@ void Process::setInstructionCompleted(bool completed) { instruction_completed = 
 void Process::setMemoryAllocated(size_t memory) { memoryAllocated = memory; }
 void Process::setMemoryPtr(void* ptr) { memoryPtr = ptr; }
 void Process::setArrivalTime(const std::chrono::system_clock::time_point& arrival) { arrival_time = arrival; }
-
+void Process::setNumPages(int pages) { this->pagesReq = pages; }

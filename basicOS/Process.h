@@ -29,6 +29,7 @@ public:
     size_t getMemoryAllocated() const;
     void* getMemoryPtr() const;
     const std::chrono::system_clock::time_point& getArrivalTime() const;
+    int getNumPages() const;
 
     // Setters
     void setId(const std::string& pid);
@@ -42,6 +43,7 @@ public:
     void setMemoryAllocated(size_t memory);
     void setMemoryPtr(void* ptr);
     void setArrivalTime(const std::chrono::system_clock::time_point& arrival);
+    void setNumPages(int pages);
 
 private:
     std::string id;                    // Process ID
@@ -56,6 +58,7 @@ private:
     bool instruction_completed;        // Whether the current instruction was completed
     size_t memoryAllocated;            // Memory allocated to the process
     void* memoryPtr;                   // Pointer to allocated memory for the process
+    int pagesReq;                      // Required number of pages
 };
 
 #endif
