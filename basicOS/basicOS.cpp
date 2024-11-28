@@ -338,9 +338,9 @@ public:
 class PagingAllocator : public IMemoryAllocator {
 public:
     PagingAllocator(size_t maxMemorySize);
-    void* allocate(Process* process) override;
-    void deallocate(Process* process) override;
-    void visualizeMemory() const override;
+    void* allocate(Process* process);
+    void deallocate(Process* process);
+    void visualizeMemory() const;
 
 private:
     size_t maxMemorySize;
@@ -360,7 +360,7 @@ PagingAllocator::PagingAllocator(size_t maxMemorySize)
 }
 
 void* PagingAllocator::allocate(Process* process) {
-    size_t processID = process->getId();
+    size_t processID = std::stoull(process->getId());
     size_t numFramesNeeded = process->getNumPages();
     if (numFramesNeeded > freeFrameList.size()) {
         std::cerr << "Memory allocation failed. Not enough free frame. \n";
@@ -369,7 +369,7 @@ void* PagingAllocator::allocate(Process* process) {
 }
 
 void PagingAllocator::deallocate(Process* process) {
-    size_t processId = process->getId();
+    size_t processId = std::stoull(process->getId());
 
     auto it = std::find_if(frameMap.begin(), frameMap.end(),
         [processId](const auto& entry) { return entry.second == processId; });
