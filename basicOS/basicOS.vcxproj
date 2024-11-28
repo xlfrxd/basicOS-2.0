@@ -142,6 +142,7 @@
     <ClCompile Include="Screen.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="ConsoleColor.h" />
     <ClInclude Include="ProcessScreen.h" />
     <ClInclude Include="ConsoleManager.h" />
     <ClInclude Include="FlatMemoryAllocator.h" />

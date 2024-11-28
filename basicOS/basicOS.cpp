@@ -23,8 +23,6 @@ using namespace std;
 #include <random>
 #include "PagingAllocator.h"
 
-
-
 int main()
 {
     ConsoleManager::initialize();

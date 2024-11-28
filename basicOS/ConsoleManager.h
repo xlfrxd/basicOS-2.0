@@ -5,6 +5,7 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include "ConsoleColor.h"
 
 const string MAIN_CONSOLE = "MAIN_CONSOLE";
 
@@ -27,8 +28,6 @@ public:
 
 	// we get the console manager instance after 
 	static ConsoleManager* getInstance();
-
-	void SetConsoleColor(int textColor);
 
 	void printHeader();
 	void drawConsole();

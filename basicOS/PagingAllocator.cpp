@@ -1,6 +1,6 @@
 #include "PagingAllocator.h"
 #include "ConsoleManager.h"
-#include "Process.h"
+#include "ProcessScreen.h"
 
 #include <map>
 #include <vector> 
@@ -8,6 +8,9 @@
 #include <memory>  
 #include <algorithm>
 #include <iostream> 
+#include <set>
+
+using namespace std;
 
 PagingAllocator::PagingAllocator(size_t maxMemorySize) : maxMemorySize(maxMemorySize), numFrames(maxMemorySize)
 {
@@ -32,6 +35,13 @@ PagingAllocator* PagingAllocator::getInstance() {
 void* PagingAllocator::allocate(std::shared_ptr<Process> process) {
 	string processId = process->getProcessName();
 	size_t numFramesNeeded = process->getNumPages();
+	/*cout << "FRAMES: " << numFramesNeeded << endl;
+	cout << "SIZE: " << freeFrameList.size() << endl;*/
+
+	for (auto it = frameMap.begin(); it != frameMap.end(); ++it) {
+		std::cout << "Frame Index: " << it->first << " -> Process: " << it->second << "\n";
+	}
+
 	if (numFramesNeeded > freeFrameList.size()) {
 		std::cerr << "Memory allocation failed. Not enough free frames.\n";
 		return nullptr;
@@ -41,6 +51,9 @@ void* PagingAllocator::allocate(std::shared_ptr<Process> process) {
 	process->setMemoryUsage(PagingAllocator::getInstance()->getProcessMemoryUsage(process->getProcessName()));
 	process->setIsRunning(true);
 	processMemoryMap[process->getProcessName()] += process->getMemoryRequired();
+
+	allocationMap.push(process);
+
 	return reinterpret_cast<void*>(frameIndex);
 }
 
@@ -64,10 +77,27 @@ void PagingAllocator::deallocate(std::shared_ptr<Process> process) {
 				processMemoryMap.erase(process->getProcessName());  // Clean up zero usage
 			}
 		}
-		process->setIsRunning(false);
+
 
 	}
+
+	process->setIsRunning(false);
+
+	/*cout << "PROCESS: " << process->getIsRunning() << endl;*/
+
+	allocationMap.pop();
 }
+
+void* PagingAllocator::isProcessAllocated(const std::string& processName) {
+	for (const auto& entry : frameMap) {
+		if (entry.second == processName) {
+			return reinterpret_cast<void*>(entry.first); // Found the process
+		}
+	}
+	return nullptr; // Process not found
+}
+
+
 
 void PagingAllocator::visualizeMemory()
 {
@@ -75,7 +105,7 @@ void PagingAllocator::visualizeMemory()
 	size_t totalMemory = maxMemorySize; // Maximum overall memory
 
 	this->setUsedMemory(usedFrames * ConsoleManager::getInstance()->getMemPerFrame());
-	
+
 
 	// Display memory usage
 	std::cout << "Memory Usage: " << this->usedMemory << " / " << totalMemory << " bytes" << std::endl;
@@ -132,6 +162,45 @@ size_t PagingAllocator::getUsedMemory()
 
 void PagingAllocator::setUsedMemory(size_t usedMemory) {
 	this->usedMemory = usedMemory;
+}
+
+std::string PagingAllocator::findOldestProcess() {
+	//std::set<std::string> visitedProcesses; // To avoid duplicates
+	//for (const auto& entry : frameMap) {
+	//	const std::string& processName = entry.second;
+	//	if (!processName.empty() && visitedProcesses.find(processName) == visitedProcesses.end()) {
+	//		// If process name is not empty and hasn't been visited yet, return it
+	//		visitedProcesses.insert(processName);
+	//		return processName; // The first valid entry is the oldest
+	//	}
+	//}
+	//return ""; // If no process is found
+	std::shared_ptr<Process> oldest = allocationMap.front();
+
+	//allocationMap.pop();
+
+	return oldest->getProcessName();
+}
+
+void PagingAllocator::findAndRemoveProcessFromBackingStore(std::shared_ptr<Process> process) {
+	bool found = false;
+
+	for (int i = 0; i < backingStore.size(); i++) {
+		//cout << "backing store process:" << backingStore[i]->getProcessName() << endl;
+		//cout << "process:" << process->getProcessName() << endl;
+		if (backingStore[i]->getProcessName() == process->getProcessName()) {
+			// Remove the process from the backing store
+			//cout << "Removing process " << process->getProcessName() << " from backing store." << endl;
+			backingStore.erase(backingStore.begin() + i);
+			break;
+		}
+	}
+
+	//cout << backingStore.size() << endl;
+}
+
+void PagingAllocator::allocateFromBackingStore(std::shared_ptr<Process> process) {
+	backingStore.push_back(process);
 }
 
 //size_t PagingAllocator::getNumPagedIn() const {

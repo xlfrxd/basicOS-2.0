@@ -9,8 +9,6 @@ using namespace std;
 #include "Process.h"
 #include <random>
 
-
-
 // stores the created instance of console manager
 ConsoleManager* ConsoleManager::consoleManager = nullptr;
 
@@ -26,7 +24,7 @@ void ConsoleManager::initializeConfiguration() {
     FILE* file;
     errno_t err = fopen_s(&file, "config.txt", "r");
     if (err != 0) {
-        cout << "Error opening file" << endl;
+        cout << ConsoleColor::RED << "Cannot open file" << ConsoleColor::RESET << endl;
     }
 
     else {
@@ -85,7 +83,6 @@ void ConsoleManager::initializeConfiguration() {
 
     setNumPages();
 }
-
 
 
 void ConsoleManager::schedulerTest() {
@@ -171,7 +168,7 @@ void ConsoleManager::switchConsole(string consoleName)
         this->switchSuccessful = true;
     }
     else {
-        cout << "Console name " << consoleName << " not found. Was it initialized?" << endl;
+        cout << ConsoleColor::YELLOW << "Console name " << consoleName << " not found." << ConsoleColor::RESET << endl;
         this->switchSuccessful = false;
     }
 }
@@ -191,7 +188,7 @@ void ConsoleManager::displayProcessList() {
     for (const auto& pair : screenMap) {
         shared_ptr<Process> screenPtr = dynamic_pointer_cast<Process>(pair.second);
 
-        if (screenPtr && !screenPtr->isFinished() && screenPtr->getIsRunning()) {
+        if (screenPtr && screenPtr->getIsRunning()) {
 
             auto coreID = screenPtr->getCPUCoreID();
             string coreIDstr;
@@ -202,11 +199,8 @@ void ConsoleManager::displayProcessList() {
                 coreIDstr = to_string(coreID);
             }
 
-            cout << "Name: " << screenPtr->getProcessName() << " | "
-                << screenPtr->getTimestamp() << " | "
-                << "Core: " << coreIDstr << " | "
-                << screenPtr->getCurrentLine() << "/"
-                << screenPtr->getTotalLine() << " | " << endl;
+            cout << screenPtr->getProcessName() << "\t(" << screenPtr->getTimestamp() << ")\tCore: " << coreIDstr << "\tProgress: "
+        	<< screenPtr->getCurrentLine() << "/" << screenPtr->getTotalLine() << endl;
         }
     }
 
@@ -216,11 +210,8 @@ void ConsoleManager::displayProcessList() {
 
 
         if (screenPtr && screenPtr->isFinished()) {
-            cout << "Name: " << screenPtr->getProcessName() << " | "
-                << screenPtr->getTimestampFinished() << " | "
-                << "Finished" << " | "
-                << screenPtr->getCurrentLine() << "/"
-                << screenPtr->getTotalLine() << " | " << endl;
+            cout << screenPtr->getProcessName() << "\t(" << screenPtr->getTimestamp() << ")\tCore: " << "\tFinished"
+                << screenPtr->getCurrentLine() << "/" << screenPtr->getTotalLine() << endl;
         }
     }
     cout << "-----------------------------------" << endl;
@@ -248,11 +239,8 @@ void ConsoleManager::reportUtil() {
             auto coreID = screenPtr->getCPUCoreID();
             std::string coreIDstr = (coreID == -1) ? "N/A" : std::to_string(coreID);
 
-            logStream << "Name: " << screenPtr->getProcessName() << " | "
-                << screenPtr->getTimestamp() << " | "
-                << "Core: " << coreIDstr << " | "
-                << screenPtr->getCurrentLine() << "/"
-                << screenPtr->getTotalLine() << " | " << std::endl;
+            logStream << screenPtr->getProcessName() << "\t(" << screenPtr->getTimestamp() << ")\tCore: " << coreIDstr
+        	<< "\tProgress: " << screenPtr->getCurrentLine() << "/" << screenPtr->getTotalLine() << endl;
         }
     }
 
@@ -263,11 +251,8 @@ void ConsoleManager::reportUtil() {
     for (const auto& pair : screenMap) {
         auto screenPtr = std::dynamic_pointer_cast<Process>(pair.second);
         if (screenPtr && screenPtr->isFinished()) {
-            logStream << "Name: " << screenPtr->getProcessName() << " | "
-                << screenPtr->getTimestampFinished() << " | "
-                << "Finished" << " | "
-                << screenPtr->getCurrentLine() << "/"
-                << screenPtr->getTotalLine() << " | " << std::endl;
+            logStream << screenPtr->getProcessName() << "\t(" << screenPtr->getTimestamp() << ")\tCore: " << "\tFinished"
+                << screenPtr->getCurrentLine() << "/" << screenPtr->getTotalLine() << endl;
         }
     }
 
@@ -278,10 +263,10 @@ void ConsoleManager::reportUtil() {
     if (file.is_open()) {
         file << logStream.str(); // Write log contents to file
         file.close();
-        std::cout << "Report generated at text_files/csopesy-log.txt" << std::endl;
+        std::cout << ConsoleColor::GREEN << "Report generated at text_files/csopesy-log.txt" << ConsoleColor::RESET << std::endl;
     }
     else {
-        std::cerr << "Error: Could not open file for writing." << std::endl;
+        std::cerr << ConsoleColor::RED << "Error: Could not open file for writing." << ConsoleColor::RESET << std::endl;
     }
 }
 
@@ -390,7 +375,7 @@ void ConsoleManager::printProcess(string enteredProcess){
                 screenPtr->viewFile();
             }
             else {
-                cout << "Process is not yet finished" << endl;
+                cout << ConsoleColor::YELLOW << "Process is not yet finished" << ConsoleColor::RESET << endl;
             }
             
         }
@@ -542,13 +527,13 @@ int ConsoleManager::getNumPages() {
 }
 
 void ConsoleManager::printHeader() {
-    cout << "                              #######  #####  \n";
-    cout << "#####    ##    ####  #  ####  #     # #     # \n";
-    cout << "#    #  #  #  #      # #    # #     # #       \n";
-    cout << "#####  #    #  ####  # #      #     #  #####  \n";
-    cout << "#    # ######      # # #      #     #       # \n";
-    cout << "#    # #    # #    # # #    # #     # #     # \n";
-    cout << "#####  #    #  ####  #  ####  #######  #####  \n\n";
+    cout << ConsoleColor::BLUE << "                              #######  #####  \n";
+    cout << ConsoleColor::BLUE <<"#####    ##    ####  #  ####  #     # #     # \n";
+    cout << ConsoleColor::BLUE << "#    #  #  #  #      # #    # #     # #       \n";
+    cout << ConsoleColor::BLUE << "#####  #    #  ####  # #      #     #  #####  \n";
+    cout << ConsoleColor::BLUE << "#    # ######      # # #      #     #       # \n";
+    cout << ConsoleColor::BLUE << "#    # #    # #    # # #    # #     # #     # \n";
+    cout << ConsoleColor::BLUE << "#####  #    #  ####  #  ####  #######  #####  \n\n";
     cout << "Hello, welcome to the basicOS command line! \n";
-    cout << "Type 'exit' to quit, 'clear' to clear the screen. \n";
+    cout << ConsoleColor::YELLOW << "Type 'exit' to quit, 'clear' to clear the screen. \n" << ConsoleColor::RESET;
 }

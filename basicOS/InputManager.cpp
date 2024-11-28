@@ -46,7 +46,7 @@ void InputCommands::handleMainConsoleInput()
     vector<string> tokens{istream_iterator<string>{iss}, istream_iterator<string>{}};
 
     if (tokens.empty()) {
-        cout << "No command entered." << endl;
+        cout << ConsoleColor::RED <<"Please enter a command" << ConsoleColor::RESET << endl;
         return;
     }
 
@@ -54,7 +54,7 @@ void InputCommands::handleMainConsoleInput()
 
     // Check initialization state once
     if (!ConsoleManager::getInstance()->getInitialized() && command != "initialize") {
-        cout << "Please initialize the processor configuration first." << endl;
+        cout << ConsoleColor::RED << "Error: System not initialized. Please run 'initialize' command first." << ConsoleColor::RESET << endl;
         return;
     }
 
@@ -71,10 +71,25 @@ void InputCommands::handleMainConsoleInput()
                     });
                 schedulerThread.detach();
 
-                cout << "'Processor Configuration Initialized'" << endl;
+                cout << ConsoleColor::GREEN << "System initialized successfully with:" << ConsoleColor::RESET << endl;
+				cout << ConsoleColor::GREEN << "Number of CPUs: " << ConsoleManager::getInstance()->getNumCpu() << ConsoleColor::RESET << endl;
+				cout << ConsoleColor::GREEN << "Scheduler Configuration: " << ConsoleManager::getInstance()->getSchedulerConfig() << ConsoleColor::RESET << endl;
+                if (ConsoleManager::getInstance()->getSchedulerConfig() == "rr")
+                {
+                    cout << ConsoleColor::GREEN << "Time Slice: " << ConsoleManager::getInstance()->getTimeSlice() << ConsoleColor::RESET << endl;
+                }
+				cout << ConsoleColor::GREEN << "Batch Process Frequency: " << ConsoleManager::getInstance()->getBatchProcessFrequency() << ConsoleColor::RESET << endl;
+				cout << ConsoleColor::GREEN << "Min Instructions: " << ConsoleManager::getInstance()->getMinIns() << ConsoleColor::RESET << endl;
+				cout << ConsoleColor::GREEN << "Max Instructions: " << ConsoleManager::getInstance()->getMaxIns() << ConsoleColor::RESET << endl;
+				cout << ConsoleColor::GREEN << "Delay Per Execution: " << ConsoleManager::getInstance()->getDelayPerExec() << ConsoleColor::RESET << endl;
+				cout << ConsoleColor::GREEN << "Max Overall Memory: " << ConsoleManager::getInstance()->getMaxOverallMem() << ConsoleColor::RESET << endl;
+				cout << ConsoleColor::GREEN << "Memory per Frame: " << ConsoleManager::getInstance()->getMemPerFrame() << ConsoleColor::RESET << endl;
+				cout << ConsoleColor::GREEN << "Min Memory per Process: " << ConsoleManager::getInstance()->getMinMemPerProc() << ConsoleColor::RESET << endl;
+				cout << ConsoleColor::GREEN <<"Max Memory per Process: " << ConsoleManager::getInstance()->getMaxMemPerProc() << ConsoleColor::RESET << endl;
+                cout << "------------------------------------------------" << endl;
             }
             else {
-				cout << "Processor Configuration already initialized." << endl;
+				cout << ConsoleColor::YELLOW << "System is already initialized." << ConsoleColor::RESET << endl;
 
             }
         }
@@ -83,7 +98,7 @@ void InputCommands::handleMainConsoleInput()
         }
         else if (command == "scheduler-test") {
             if (!Scheduler::getInstance()->getSchedulerTestRunning()) {
-                cout << "Scheduler Test now running" << endl;
+                cout << ConsoleColor::GREEN << ConsoleManager::getInstance()->getSchedulerConfig() << "scheduler is now running." << ConsoleColor::RESET << endl;
                 Scheduler::getInstance()->setSchedulerTestRunning(true);
                 // create batchProcessFrequency number of processes
                 std::thread schedulerTestThread([&] {
@@ -93,20 +108,21 @@ void InputCommands::handleMainConsoleInput()
                
             }
             else {
-                cout << "Scheduler Test already running" << endl;
+                cout << ConsoleColor::YELLOW << "Scheduler is already running" << ConsoleColor::RESET << endl;
             }
         }
         else if (command == "scheduler-stop") {
             if (Scheduler::getInstance()->getSchedulerTestRunning()) {
-                cout << "Scheduler Test stopped" << endl;
+                cout << ConsoleColor::GREEN << "Scheduler has been stopped." << ConsoleColor::RESET << endl;
                 Scheduler::getInstance()->setSchedulerTestRunning(false);
             }
             else {
-                cout << "Scheduler Test not running" << endl;
+                cout << ConsoleColor::YELLOW << "Scheduler is not running." << ConsoleColor::RESET << endl;
             }
         }
         else if (command == "report-util") {
             ConsoleManager::getInstance()->reportUtil();
+			cout << ConsoleColor::GREEN << "Report generated." << ConsoleColor::RESET << endl;
         }
         else if (command == "clear") {
             system("cls");
@@ -133,7 +149,7 @@ void InputCommands::handleMainConsoleInput()
 
                 if (screenCommand == "-s" && !processName.empty()) {
                     if (ConsoleManager::getInstance()->getScreenMap().contains(processName)) {
-                        cout << "Screen already exists." << endl;
+                        cout << ConsoleColor::YELLOW << "Screen already exists." << ConsoleColor::RESET << endl;
                     }
                     else {
                         string timestamp = ConsoleManager::getInstance()->getCurrentTimestamp();
@@ -155,15 +171,15 @@ void InputCommands::handleMainConsoleInput()
                     FlatMemoryAllocator::getInstance()->visualizeBackingStore();
                 }
                 else {
-                    cout << "Command not recognized." << endl;
+                    cout << ConsoleColor::RED << "Invalid command" << ConsoleColor::RESET << endl;
                 }
             }
             else {
-                cout << "Command not recognized." << endl;
+                cout << ConsoleColor::RED << "Invalid command" << ConsoleColor::RESET << endl;
             }
         }
         else {
-            cout << "Command not recognized." << endl;
+            cout << ConsoleColor::RED << "Invalid command" << ConsoleColor::RESET << endl;
         }
     }
     else {
@@ -175,9 +191,7 @@ void InputCommands::handleMainConsoleInput()
             ConsoleManager::getInstance()->printProcessSmi();
         }
         else {
-            cout << "Command not recognized." << endl;
+            cout << ConsoleColor::RED << "Invalid command" << ConsoleColor::RED << endl;
         }
     }
 }
-
-    

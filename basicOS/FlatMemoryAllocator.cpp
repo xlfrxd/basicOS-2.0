@@ -20,8 +20,8 @@ FlatMemoryAllocator::~FlatMemoryAllocator()
 
 FlatMemoryAllocator* FlatMemoryAllocator::flatMemoryAllocator = nullptr;
 
-void FlatMemoryAllocator::initialize(size_t maximumMemorySize){
-    flatMemoryAllocator = new FlatMemoryAllocator(maximumMemorySize);
+void FlatMemoryAllocator::initialize(size_t maximumMemorySize) {
+	flatMemoryAllocator = new FlatMemoryAllocator(maximumMemorySize);
 }
 
 FlatMemoryAllocator* FlatMemoryAllocator::getInstance() {
@@ -32,85 +32,69 @@ std::mutex allocationMapMutex;  // Mutex for protecting allocationMap
 
 void* FlatMemoryAllocator::allocate(size_t size, string processName, std::shared_ptr<Process> process) {
 	{
-		std::lock_guard<std::mutex> lock(allocationMapMutex);  // Lock to ensure thread safety
+		std::lock_guard<std::mutex> lock(allocationMapMutex);  // Lock to ensure thread safety	
 
+		/*std::cout << "Allocating process: " << processName << ", size: " << size
+			<< ", allocated size: " << allocatedSize
+			<< ", maximum size: " << maximumSize << std::endl;
+
+		std::cout << "Allocation Map State Before Allocation:" << std::endl;*/
+		/*for (const auto& entry : allocationMap) {
+			std::cout << "Index: " << entry.first << ", Process: " << entry.second << std::endl;
+		}*/
 		// Check for the availability of a suitable block
 		for (size_t i = 0; i < maximumSize - size + 1; ++i) {
 			// Check if the memory block is available
 			if (allocationMap.find(i) == allocationMap.end() || allocationMap[i].empty()) {
 				if (canAllocateAt(i, size)) {
+
 					// Ensure that the requested block doesn't go out of bounds
-					if (i + size <= maximumSize) {
-						allocateAt(i, size, processName);
-						process->setMemoryUsage(FlatMemoryAllocator::getInstance()->getProcessMemoryUsage(processName));
-						process->setIsRunning(true);
-						return &memory[i];  // Return pointer to allocated memory
-					}
+
+					allocateAt(i, size, processName);
+					process->setMemoryUsage(FlatMemoryAllocator::getInstance()->getProcessMemoryUsage(processName));
+					process->setIsRunning(true);
+					return &memory[i];  // Return pointer to allocated memory
+
 				}
 			}
 		}
 
-		//if (!processMemoryMap.empty()) {
-		//	// Find the oldest process in the allocation map
-		//	auto oldest = processMemoryMap.begin();
-		//	std::string oldestProcessName = oldest->first;
-		//	size_t oldestProcessMemorySize = oldest->second;
-
-		//	// Find the corresponding Screen object
-		//	std::shared_ptr<Screen> oldestProcess = ConsoleManager::getInstance()->getScreenByProcessName(oldestProcessName);
-
-		//	if (oldestProcess) {
-		//		
-		//		// Move the process to the backing store
-		//		backingStore.push(oldestProcess);
-
-		//		// Deallocate the oldest process
-		//		deallocateAt(findProcessStartIndex(oldestProcessName), oldestProcess);
-
-		//		// Retry allocation
-		//		for (size_t i = 0; i < maximumSize - size + 1; ++i) {
-		//			// Check if the memory block is available
-		//			if (allocationMap.find(i) == allocationMap.end() || allocationMap[i].empty()) {
-		//				if (canAllocateAt(i, size)) {
-		//					// Ensure that the requested block doesn't go out of bounds
-		//					if (i + size <= maximumSize) {
-		//						allocateAt(i, size, processName);
-		//						process->setMemoryUsage(FlatMemoryAllocator::getInstance()->getProcessMemoryUsage(processName));
-		//						process->setIsRunning(true);
-		//						return &memory[i];  // Return pointer to allocated memory
-		//					}
-		//				}
-		//			}
-		//		}
-		//	
-		//	}
-		//}
-
-		//if (!backingStore.empty()) {
-		//	// Attempt to restore a process from the backing store
-		//	auto oldestProcess = backingStore.front();  // Get the oldest process from the backing store
-		//	backingStore.pop();  // Remove it from the backing store
-
-		//	// Find a free spot in memory
-		//	for (size_t i = 0; i < maximumSize - oldestProcess->getMemoryRequired() + 1; ++i) {
-		//		// Check if the memory block is available
-		//		if (allocationMap.find(i) == allocationMap.end() || allocationMap[i].empty()) {
-		//			if (canAllocateAt(i, oldestProcess->getMemoryRequired())) {
-		//				// Ensure that the requested block doesn't go out of bounds
-		//				if (i + oldestProcess->getMemoryRequired() <= maximumSize) {
-		//					allocateAt(i, oldestProcess->getMemoryRequired(), oldestProcess->getProcessName());
-		//					oldestProcess->setMemoryUsage(FlatMemoryAllocator::getInstance()->getProcessMemoryUsage(oldestProcess->getProcessName()));
-		//					oldestProcess->setIsRunning(true);
-		//					return &memory[i];  // Return pointer to allocated memory
-		//				}
-		//			}
-		//		}
-		//	}
-		//}
 	}
 
 	return nullptr;  // Return nullptr if allocation fails
 }
+
+void FlatMemoryAllocator::allocateFromBackingStore(std::shared_ptr<Process> process) {
+	backingStore.push_back(process);
+}
+
+std::shared_ptr<Process> FlatMemoryAllocator::findOldestProcess() {
+	// Ensure the allocationMap is not empty
+	if (!allocationMap.empty()) {
+		size_t oldestIndex = maximumSize; // Start with the highest possible index
+		std::string oldestProcessName;
+
+		// Iterate through the allocationMap to find the smallest key with a valid process name
+		for (const auto& entry : allocationMap) {
+			size_t index = entry.first;
+			const std::string& processName = entry.second;
+
+			if (!processName.empty() && index < oldestIndex) {
+				oldestIndex = index;
+				oldestProcessName = processName;
+			}
+		}
+
+		// If a valid process was found, retrieve the corresponding Screen object
+		if (!oldestProcessName.empty()) {
+			return ConsoleManager::getInstance()->getScreenByProcessName(oldestProcessName);
+		}
+	}
+
+	// Return nullptr if no process is found
+	return nullptr;
+}
+
 
 size_t FlatMemoryAllocator::findProcessStartIndex(const std::string& processName) {
 	// Iterate over the allocation map
@@ -133,11 +117,16 @@ size_t FlatMemoryAllocator::findProcessStartIndex(const std::string& processName
 void FlatMemoryAllocator::deallocate(void* ptr, std::shared_ptr<Process> process) {
 	std::lock_guard<std::mutex> lock(allocationMapMutex);
 	size_t index = static_cast<char*>(ptr) - &memory[0];
+
+	// Print the contents of allocationMap
+
+	// Proceed with deallocation
 	if (allocationMap[index] != "") {
 		deallocateAt(index, process);
 		process->setIsRunning(false);
 	}
 }
+
 
 std::string FlatMemoryAllocator::visualizeMemory()
 {
@@ -150,8 +139,8 @@ std::string FlatMemoryAllocator::visualizeMemory()
 
 
 void FlatMemoryAllocator::visualizeMemoryASCII() {
-	
-	
+
+
 
 }
 
@@ -186,23 +175,27 @@ void FlatMemoryAllocator::initializeMemory() {
 
 
 
-bool FlatMemoryAllocator:: canAllocateAt(size_t index, size_t size) {
+bool FlatMemoryAllocator::canAllocateAt(size_t index, size_t size) {
 	return (index + size <= maximumSize);
 }
 
 void FlatMemoryAllocator::allocateAt(size_t index, size_t size, string processName) {
 	// Fill allocation map with true values starting from index until the process size
 	for (size_t i = index; i < index + size; ++i) {
-		allocationMap[i] = processName; 
+		/*cout << "index: " << i << endl;
+		cout << "p: " << processName << endl;*/
+		allocationMap[i] = processName;
 	}
 	allocatedSize += size;
 	processMemoryMap[processName] += size;
 }
 
-void FlatMemoryAllocator::deallocateAt(size_t index, std::shared_ptr<Process> process){
+void FlatMemoryAllocator::deallocateAt(size_t index, std::shared_ptr<Process> process) {
 	size_t size = ConsoleManager::getInstance()->getMinMemPerProc();
+	//cout << "process name: " << process->getProcessName() << endl;
 	for (size_t i = index; i < index + size && i < maximumSize; ++i) {
-		allocationMap[i]  = "";
+		allocationMap[i] = "";
+		/*cout << "deallocateAt: " << i << endl;*/
 	}
 	allocatedSize -= size;
 
@@ -218,7 +211,7 @@ void FlatMemoryAllocator::deallocateAt(size_t index, std::shared_ptr<Process> pr
 void FlatMemoryAllocator::restoreFromBackingStore() {
 	if (!backingStore.empty()) {
 		std::shared_ptr<Process> restoredProcess = backingStore.front();
-		backingStore.pop();
+		backingStore.pop_back();
 
 		size_t memorySize = restoredProcess->getMemoryUsage();
 		std::string processName = restoredProcess->getProcessName();
@@ -231,14 +224,14 @@ void FlatMemoryAllocator::restoreFromBackingStore() {
 		}
 		else {
 			// Re-add to the backing store if reallocation fails
-			backingStore.push(restoredProcess);
+			backingStore.push_back(restoredProcess);
 		}
 	}
 }
 
 void FlatMemoryAllocator::visualizeBackingStore() {
 	// Create a temporary copy of the queue for iteration
-	std::queue<std::shared_ptr<Process>> tempQueue = backingStore;
+	std::vector<std::shared_ptr<Process>> tempQueue = backingStore;
 
 	if (tempQueue.empty()) {
 		std::cout << "Backing store is empty." << std::endl;
@@ -251,7 +244,7 @@ void FlatMemoryAllocator::visualizeBackingStore() {
 	size_t index = 0; // Index to track the position of the process in the queue
 	while (!tempQueue.empty()) {
 		std::shared_ptr<Process> process = tempQueue.front();
-		tempQueue.pop();
+		tempQueue.pop_back();
 
 		// Access information from the Screen object
 		std::cout << "Index: " << index++
@@ -297,7 +290,7 @@ void FlatMemoryAllocator::printMemoryInfo(int quantum_size) {
 			currentProcessName = incomingProcessName;
 			outFile << currentProcessName << "\n";
 		}
-		else if (incomingProcessName.empty() && i == maximumSize-1) {
+		else if (incomingProcessName.empty() && i == maximumSize - 1) {
 			outFile << i + 1 << "\n";
 		}
 	}
@@ -333,11 +326,59 @@ size_t FlatMemoryAllocator::getNumberOfProcessesInMemory() {
 			}
 		}
 	}
-		// Calculate the number of processes
-		size_t processSizeInBlocks = ConsoleManager::getInstance()->getMinMemPerProc();  // Number of blocks per process
+	// Calculate the number of processes
+	size_t processSizeInBlocks = ConsoleManager::getInstance()->getMinMemPerProc();  // Number of blocks per process
 	return allocatedBlocks / processSizeInBlocks;  // Total number of processes in memory
 }
 
+void* FlatMemoryAllocator::getMemoryPtr(size_t size, string processName, std::shared_ptr<Process> process) {
+	std::lock_guard<std::mutex> lock(allocationMapMutex);
+
+	// Search for the starting index of the process in the allocationMap
+	//for (const auto& entry : allocationMap) {
+	//	if (entry.second == processName) {
+	//		size_t index = entry.first; // Get the starting index
+	//		return &memory[index];     // Return the memory pointer
+	//	}
+
+	///*	cout << "Process Name: " << processName << endl;
+	//	cout << "Index: " << entry.first << endl;*/
+	//}
+
+	for (size_t i = 0; i < maximumSize - size + 1; ++i) {
+		if (processName == allocationMap[i]) {
+			/*cout << "I: " << i << endl;*/
+
+			return &memory[i];
+		}
+	}
+
+	// If the process is not found, return nullptr
+	return nullptr;
+}
 
 
+void FlatMemoryAllocator::findAndRemoveProcessFromBackingStore(std::shared_ptr<Process> process) {
+	bool found = false;
 
+	for (int i = 0; i < backingStore.size(); i++) {
+		//cout << "backing store process:" << backingStore[i]->getProcessName() << endl;
+		//cout << "process:" << process->getProcessName() << endl;
+		if (backingStore[i]->getProcessName() == process->getProcessName()) {
+			// Remove the process from the backing store
+			//cout << "Removing process " << process->getProcessName() << " from backing store." << endl;
+			backingStore.erase(backingStore.begin() + i);
+			break;
+		}
+	}
+
+	//cout << backingStore.size() << endl;
+}
+
+size_t FlatMemoryAllocator::getAllocatedSize() {
+	return allocatedSize;
+}
+
+std::unordered_map<size_t, string> FlatMemoryAllocator::getAllocationMap() {
+	return allocationMap;
+}
