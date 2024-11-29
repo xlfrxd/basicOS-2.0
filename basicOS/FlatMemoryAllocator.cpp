@@ -34,14 +34,6 @@ void* FlatMemoryAllocator::allocate(size_t size, string processName, std::shared
 	{
 		std::lock_guard<std::mutex> lock(allocationMapMutex);  // Lock to ensure thread safety	
 
-		/*std::cout << "Allocating process: " << processName << ", size: " << size
-			<< ", allocated size: " << allocatedSize
-			<< ", maximum size: " << maximumSize << std::endl;
-
-		std::cout << "Allocation Map State Before Allocation:" << std::endl;*/
-		/*for (const auto& entry : allocationMap) {
-			std::cout << "Index: " << entry.first << ", Process: " << entry.second << std::endl;
-		}*/
 		// Check for the availability of a suitable block
 		for (size_t i = 0; i < maximumSize - size + 1; ++i) {
 			// Check if the memory block is available
@@ -290,7 +282,7 @@ void FlatMemoryAllocator::printMemoryInfo(int quantum_size) {
 	}
 	outFile << "----start---- = 0\n";
 
-	outFile.close();  // Close the file
+	outFile.close();
 }
 
 
@@ -354,8 +346,6 @@ void FlatMemoryAllocator::findAndRemoveProcessFromBackingStore(std::shared_ptr<P
 			break;
 		}
 	}
-
-	//cout << backingStore.size() << endl;
 }
 
 size_t FlatMemoryAllocator::getAllocatedSize() {

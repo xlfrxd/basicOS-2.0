@@ -8,7 +8,7 @@ using namespace std;
 
 class ConsoleScreen : public ProcessScreen {
 public:
-	ConsoleScreen(string name); // MAIN_CONSOLE
+	ConsoleScreen(string name);
 	ConsoleScreen();
 
 private:

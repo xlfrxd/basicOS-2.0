@@ -11,7 +11,6 @@
 
 using namespace std;
 
-// stores the created instance of console manager
 ConsoleManager* ConsoleManager::consoleManager = nullptr;
 
 ConsoleManager::ConsoleManager() {
@@ -20,6 +19,38 @@ ConsoleManager::ConsoleManager() {
 void ConsoleManager::initialize() {
     consoleManager = new ConsoleManager();
     ConsoleManager::getInstance()->initializeConfiguration();
+}
+
+void ConsoleManager::drawConsole() {
+    if (this->switchSuccessful) {
+        system("cls");
+        string consoleName = this->getCurrentConsole()->getConsoleName();
+
+        if (this->getCurrentConsole()->getConsoleName() == MAIN_CONSOLE) {
+            this->printHeader();
+        }
+        else {
+            if (this->screenMap.contains(consoleName)) {
+                cout << "Screen Name: " << this->screenMap[consoleName]->getConsoleName() << endl;
+                cout << "Current line of instruction / Total line of instruction: ";
+                cout << this->screenMap[consoleName]->getCurrentLine();
+                cout << "/" << this->screenMap[consoleName]->getTotalLine() << endl;
+                cout << "Timestamp: " << this->screenMap[consoleName]->getTimestamp() << endl;
+            }
+        }
+    }
+}
+
+void ConsoleManager::printHeader() {
+    cout << ConsoleColor::BLUE << "                              #######  #####  \n";
+    cout << ConsoleColor::BLUE << "#####    ##    ####  #  ####  #     # #     # \n";
+    cout << ConsoleColor::BLUE << "#    #  #  #  #      # #    # #     # #       \n";
+    cout << ConsoleColor::BLUE << "#####  #    #  ####  # #      #     #  #####  \n";
+    cout << ConsoleColor::BLUE << "#    # ######      # # #      #     #       # \n";
+    cout << ConsoleColor::BLUE << "#    # #    # #    # # #    # #     # #     # \n";
+    cout << ConsoleColor::BLUE << "#####  #    #  ####  #  ####  #######  #####  \n\n";
+    cout << "Hello, welcome to the basicOS command line! \n";
+    cout << ConsoleColor::YELLOW << "Type 'exit' to quit, 'clear' to clear the screen. \n" << ConsoleColor::RESET;
 }
 
 void ConsoleManager::initializeConfiguration() {
@@ -96,8 +127,8 @@ void ConsoleManager::schedulerTest() {
            /* string processName = "cycle" + std::to_string(ConsoleManager::getInstance()->cpuCycles) + "processName" + std::to_string(i);*/
             string processName = "P" + std::to_string(process_counter);
             shared_ptr<ProcessScreen> processScreen = make_shared<Process>(processName, 0, ConsoleManager::getInstance()->getCurrentTimestamp(), ConsoleManager::getInstance()->getMinMemPerProc());
-            shared_ptr<Process> screenPtr = static_pointer_cast<Process>(processScreen);
-            Scheduler::getInstance()->addProcessToQueue(screenPtr);
+            shared_ptr<Process> processPtr = static_pointer_cast<Process>(processScreen);
+            Scheduler::getInstance()->addProcessToQueue(processPtr);
             ConsoleManager::getInstance()->registerConsole(processScreen);
             ConsoleManager::getInstance()->cpuCycles++;
             
@@ -111,26 +142,6 @@ void ConsoleManager::schedulerTest() {
 
 int ConsoleManager::getCpuCycles() {
 	return this->cpuCycles;
-}
-
-void ConsoleManager::drawConsole() {
-    if (this->switchSuccessful) {
-        system("cls");
-        string consoleName = this->getCurrentConsole()->getConsoleName();
-
-        if (this->getCurrentConsole()->getConsoleName() == MAIN_CONSOLE) {
-            this->printHeader();
-        }
-        else {
-            if (this->screenMap.contains(consoleName)) {
-                cout << "Screen Name: " << this->screenMap[consoleName]->getConsoleName() << endl;
-                cout << "Current line of instruction / Total line of instruction: ";
-                cout << this->screenMap[consoleName]->getCurrentLine();
-                cout << "/" << this->screenMap[consoleName]->getTotalLine() << endl;
-                cout << "Timestamp: " << this->screenMap[consoleName]->getTimestamp() << endl;
-            }
-        }
-    }
 }
 
 void ConsoleManager::destroy() {
@@ -188,11 +199,11 @@ void ConsoleManager::displayProcessList() {
     cout << "-----------------------------------" << endl;
     cout << "Running processes:" << endl;
     for (const auto& pair : screenMap) {
-        shared_ptr<Process> screenPtr = dynamic_pointer_cast<Process>(pair.second);
+        shared_ptr<Process> processPtr = dynamic_pointer_cast<Process>(pair.second);
 
-        if (screenPtr && screenPtr->getIsRunning() && screenPtr->getMemoryUsage() != 0) {
+        if (processPtr && processPtr->getIsRunning() && processPtr->getMemoryUsage() != 0) {
 
-            auto coreID = screenPtr->getCPUCoreID();
+            auto coreID = processPtr->getCPUCoreID();
             string coreIDstr;
             if (coreID == -1) {
                 coreIDstr = "N/A";
@@ -201,19 +212,19 @@ void ConsoleManager::displayProcessList() {
                 coreIDstr = to_string(coreID);
             }
 
-            cout << screenPtr->getProcessName() << "\t(" << screenPtr->getTimestamp() << ")\tCore: " << coreIDstr << "\tProgress: "
-        	<< screenPtr->getCurrentLine() << "/" << screenPtr->getTotalLine() << endl;
+            cout << processPtr->getProcessName() << "\t(" << processPtr->getTimestamp() << ")\tCore: " << coreIDstr << "\tProgress: "
+        	<< processPtr->getCurrentLine() << "/" << processPtr->getTotalLine() << endl;
         }
     }
 
     cout << "\nFinished processes:" << endl;
     for (const auto& pair : screenMap) {
-        shared_ptr<Process> screenPtr = dynamic_pointer_cast<Process>(pair.second);
+        shared_ptr<Process> processPtr = dynamic_pointer_cast<Process>(pair.second);
 
 
-        if (screenPtr && screenPtr->isFinished()) {
-            cout << screenPtr->getProcessName() << "\t(" << screenPtr->getTimestamp() << ")\tCore: " << "\tFinished"
-                << screenPtr->getCurrentLine() << "/" << screenPtr->getTotalLine() << endl;
+        if (processPtr && processPtr->isFinished()) {
+            cout << processPtr->getProcessName() << "\t(" << processPtr->getTimestamp() << ")\tCore: " << "\tFinished"
+                << processPtr->getCurrentLine() << "/" << processPtr->getTotalLine() << endl;
         }
     }
     cout << "-----------------------------------" << endl;
@@ -234,25 +245,12 @@ void ConsoleManager::reportUtil() {
     logStream << "-----------------------------------" << std::endl;
     logStream << "Running processes:" << std::endl;
 
-    // Log details of running processes (pre-memory)
-    /*
-	for (const auto& pair : screenMap) {
-        auto screenPtr = std::dynamic_pointer_cast<Process>(pair.second);
-        if (screenPtr && !screenPtr->isFinished()) {
-            auto coreID = screenPtr->getCPUCoreID();
-            std::string coreIDstr = (coreID == -1) ? "N/A" : std::to_string(coreID);
-
-            logStream << screenPtr->getProcessName() << "\t(" << screenPtr->getTimestamp() << ")\tCore: " << coreIDstr
-        	<< "\tProgress: " << screenPtr->getCurrentLine() << "/" << screenPtr->getTotalLine() << endl;
-        }
-    } */
-
     for (const auto& pair : screenMap) {
-        shared_ptr<Process> screenPtr = dynamic_pointer_cast<Process>(pair.second);
+        shared_ptr<Process> processPtr = dynamic_pointer_cast<Process>(pair.second);
 
-        if (screenPtr && screenPtr->getIsRunning() && screenPtr->getMemoryUsage() != 0) {
+        if (processPtr && processPtr->getIsRunning() && processPtr->getMemoryUsage() != 0) {
 
-            auto coreID = screenPtr->getCPUCoreID();
+            auto coreID = processPtr->getCPUCoreID();
             string coreIDstr;
             if (coreID == -1) {
                 coreIDstr = "N/A";
@@ -261,18 +259,18 @@ void ConsoleManager::reportUtil() {
                 coreIDstr = to_string(coreID);
             }
 
-            logStream << screenPtr->getProcessName() << "\t(" << screenPtr->getTimestamp() << ")\tCore: " << coreIDstr << "\tProgress: "
-                << screenPtr->getCurrentLine() << "/" << screenPtr->getTotalLine() << endl;
+            logStream << processPtr->getProcessName() << "\t(" << processPtr->getTimestamp() << ")\tCore: " << coreIDstr << "\tProgress: "
+                << processPtr->getCurrentLine() << "/" << processPtr->getTotalLine() << endl;
         }
     }
 
     logStream << "\nFinished processes:" << endl;
     for (const auto& pair : screenMap) {
-        shared_ptr<Process> screenPtr = dynamic_pointer_cast<Process>(pair.second);
+        shared_ptr<Process> processPtr = dynamic_pointer_cast<Process>(pair.second);
 
-        if (screenPtr && screenPtr->isFinished()) {
-            logStream << screenPtr->getProcessName() << "\t(" << screenPtr->getTimestamp() << ")\tCore: " << "\tFinished"
-                << screenPtr->getCurrentLine() << "/" << screenPtr->getTotalLine() << endl;
+        if (processPtr && processPtr->isFinished()) {
+            logStream << processPtr->getProcessName() << "\t(" << processPtr->getTimestamp() << ")\tCore: " << "\tFinished"
+                << processPtr->getCurrentLine() << "/" << processPtr->getTotalLine() << endl;
         }
     }
 
@@ -368,16 +366,16 @@ void ConsoleManager::printProcess(string enteredProcess){
     unordered_map<string, shared_ptr<ProcessScreen>> screenMap = ConsoleManager::getInstance()->getScreenMap();
     auto it = screenMap.find(enteredProcess);
     for (const auto& pair : screenMap) {
-        shared_ptr<Process> screenPtr = dynamic_pointer_cast<Process>(pair.second);
+        shared_ptr<Process> processPtr = dynamic_pointer_cast<Process>(pair.second);
 
         //check if process name exits
-        if (screenPtr->getProcessName() == enteredProcess) {
+        if (processPtr->getProcessName() == enteredProcess) {
 
             //check if process is finished
-            if (screenPtr && screenPtr->isFinished()){
-                shared_ptr<Process> screenPtr = dynamic_pointer_cast<Process>(screenMap.find(enteredProcess)->second);
+            if (processPtr && processPtr->isFinished()){
+                shared_ptr<Process> processPtr = dynamic_pointer_cast<Process>(screenMap.find(enteredProcess)->second);
 
-                auto coreID = screenPtr->getCPUCoreID();
+                auto coreID = processPtr->getCPUCoreID();
                 string coreIDstr;
                 if (coreID == -1) {
                     coreIDstr = "N/A";
@@ -388,11 +386,11 @@ void ConsoleManager::printProcess(string enteredProcess){
 
                 cout << "Process Name: " << enteredProcess << endl;
                 cout << "Logs:" << endl;
-                cout << "(" << screenPtr->getTimestamp() << ")  "
+                cout << "(" << processPtr->getTimestamp() << ")  "
                     << "Core: " << coreIDstr << "  ";
 
-                screenPtr->createFile();
-                screenPtr->viewFile();
+                processPtr->createFile();
+                processPtr->viewFile();
             }
             else {
                 cout << ConsoleColor::YELLOW << "Process is not yet finished" << ConsoleColor::RESET << endl;
@@ -431,10 +429,10 @@ void ConsoleManager::printProcessSmi() {
 
     // Iterate through screenMap to get running processes and their memory usage
     for (const auto& pair : screenMap) {
-        auto screenPtr = std::dynamic_pointer_cast<Process>(pair.second);
-        if (screenPtr && !screenPtr->isFinished() && screenPtr->getIsRunning() && screenPtr->getMemoryUsage() != 0) {  
-            size_t memoryUsage = screenPtr->getMemoryUsage();
-            cout << "Process: " << screenPtr->getProcessName() << " | Memory: " << memoryUsage << " KB" << endl;
+        auto processPtr = std::dynamic_pointer_cast<Process>(pair.second);
+        if (processPtr && !processPtr->isFinished() && processPtr->getIsRunning() && processPtr->getMemoryUsage() != 0) {  
+            size_t memoryUsage = processPtr->getMemoryUsage();
+            cout << "Process: " << processPtr->getProcessName() << " | Memory: " << memoryUsage << " KB" << endl;
         }
     }
 	cout << "===================================================" << endl << endl;
@@ -455,18 +453,6 @@ void ConsoleManager::printVmstat() {
     cout << ConsoleColor::BLUE << Scheduler::getInstance()->getCpuCycles() + Scheduler::getInstance()->getIdleCpuTicks() << ConsoleColor::RESET << " total cpu ticks" << endl;
     cout << ConsoleColor::BLUE << PagingAllocator::getInstance()->getNumPagedIn() << ConsoleColor::RESET << " num paged in" << endl;
     cout << ConsoleColor::BLUE << PagingAllocator::getInstance()->getNumPagedOut() << ConsoleColor::RESET << " num paged out"<< endl << endl;
-}
-
-void ConsoleManager::printHeader() {
-    cout << ConsoleColor::BLUE << "                              #######  #####  \n";
-    cout << ConsoleColor::BLUE << "#####    ##    ####  #  ####  #     # #     # \n";
-    cout << ConsoleColor::BLUE << "#    #  #  #  #      # #    # #     # #       \n";
-    cout << ConsoleColor::BLUE << "#####  #    #  ####  # #      #     #  #####  \n";
-    cout << ConsoleColor::BLUE << "#    # ######      # # #      #     #       # \n";
-    cout << ConsoleColor::BLUE << "#    # #    # #    # # #    # #     # #     # \n";
-    cout << ConsoleColor::BLUE << "#####  #    #  ####  #  ####  #######  #####  \n\n";
-    cout << "Hello, welcome to the basicOS command line! \n";
-    cout << ConsoleColor::YELLOW << "Type 'exit' to quit, 'clear' to clear the screen. \n" << ConsoleColor::RESET;
 }
 
 shared_ptr<ProcessScreen> ConsoleManager::getCurrentConsole()
