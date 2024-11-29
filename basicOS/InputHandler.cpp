@@ -35,9 +35,9 @@ void InputHandler::handleMainConsoleInput()
 {
     cout << "Enter a command: ";
     string input;
-    getline(cin, input); // Capture entire line input
+    getline(cin, input);
 
-    // Convert input to lowercase
+    // Converts input to lowercase
     for (char &c : input) {
         c = tolower(c);
     }
@@ -101,7 +101,6 @@ void InputHandler::handleMainConsoleInput()
             if (!Scheduler::getInstance()->getSchedulerTestRunning()) {
                 cout << ConsoleColor::GREEN << ConsoleManager::getInstance()->getSchedulerConfig() << " scheduler is now running." << ConsoleColor::RESET << endl;
                 Scheduler::getInstance()->setSchedulerTestRunning(true);
-                // create batchProcessFrequency number of processes
                 std::thread schedulerTestThread([&] {
 					ConsoleManager::getInstance()->schedulerTest();
                     });
@@ -153,7 +152,6 @@ void InputHandler::handleMainConsoleInput()
                     }
                     else {
                         string timestamp = ConsoleManager::getInstance()->getCurrentTimestamp();
-                        // TODO: should be either 256 or 512 if num per memory frame is 256?
                         auto screenInstance = std::make_shared<Process>(processName, 0, timestamp, ConsoleManager::getInstance()->getMinMemPerProc());
                         ConsoleManager::getInstance()->registerConsole(screenInstance);
 
@@ -188,7 +186,7 @@ void InputHandler::handleMainConsoleInput()
         }
     }
     else {
-        // Process-specific commands
+        // Process Screen commands
         if (command == "exit") {
             ConsoleManager::getInstance()->switchConsole(MAIN_CONSOLE);
         }

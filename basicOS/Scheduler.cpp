@@ -38,7 +38,6 @@ void Scheduler::start() {
     schedulerRunning = true;
     algorithm = ConsoleManager::getInstance()->getSchedulerConfig();
     for (int i = 0; i < numCores; i++) {
-        // Launch each core on a separate detached thread
 
         std::thread([this, i]() {
             while (schedulerRunning) {
@@ -52,7 +51,7 @@ void Scheduler::start() {
 
                     process = processQueue.front();
                     processQueue.pop();
-                    ++activeThreads; // Increment active thread count
+                    ++activeThreads;
                 }
 
                 void* memoryPtr = nullptr;
@@ -61,7 +60,6 @@ void Scheduler::start() {
 
 
                 if (isFlatMemory) {
-                    // if process is in memory, get the memory ptr
                     void* tempPtr = FlatMemoryAllocator::getInstance()->getMemoryPtr(process->getMemoryRequired(), process->getProcessName(), process);
 
                     if (tempPtr) {
@@ -82,9 +80,7 @@ void Scheduler::start() {
                     processInMemory = PagingAllocator::getInstance()->isProcessInMemory(process->getProcessName());
 
                     if (processInMemory) {
-
-                        //process->setIsRunning(true);
-
+						// Does nothing, process is already in memory
                     }
                     // allocate the memory
                     else {
@@ -102,8 +98,6 @@ void Scheduler::start() {
                     process->setIsRunning(true);
                     workerFunction(i, process, memoryPtr);
                 }
-
-                // if the process was failed to be allocated
                 else {
                     if (algorithm == "fcfs") {
                         addToFrontOfProcessQueue(process);
@@ -111,18 +105,13 @@ void Scheduler::start() {
                     else {
                         coresAvailable--;
                         coresUsed++;
-                        // if flat memory
                         if (isFlatMemory) {
-                            // get oldest process
                             std::shared_ptr<Process> oldestProcess = FlatMemoryAllocator::getInstance()->findOldestProcess();
-                            //cout << "Oldest process: " << oldestProcess->getProcessName() << endl;
-                            // get memory ptr of the oldest process
                             void* oldestMemoryPtr = FlatMemoryAllocator::getInstance()->getMemoryPtr(oldestProcess->getMemoryRequired(), oldestProcess->getProcessName(), oldestProcess);
 
-                            // deallocate the oldest process
                             FlatMemoryAllocator::getInstance()->deallocate(oldestMemoryPtr, oldestProcess);
 
-                            // put the oldest process back to backing store
+                            // oldest process back to backing store
                             FlatMemoryAllocator::getInstance()->allocateFromBackingStore(oldestProcess);
 
                             // if the new process is in backing store, remove it from the backing store
@@ -137,22 +126,16 @@ void Scheduler::start() {
                                 workerFunction(i, process, memoryPtr);
                             }
                         }
-                        // if paging
                         else {
-                            // get oldest process
                             string oldestProcessStr = PagingAllocator::getInstance()->findOldestProcess();
                             std::shared_ptr<Process> oldestProcess = ConsoleManager::getInstance()->getScreenByProcessName(oldestProcessStr);
 
-                            // deallocate the oldest process
                             PagingAllocator::getInstance()->deallocate(oldestProcess);
 
-                            // put the oldest process back to backing store
                             PagingAllocator::getInstance()->allocateFromBackingStore(oldestProcess);
 
-                            // if the new process is in backing store, remove it from the backing store
                             PagingAllocator::getInstance()->findAndRemoveProcessFromBackingStore(process);
 
-                            // allocate the new process
                             bool processInMemory = PagingAllocator::getInstance()->allocate(process);
 
                             if (processInMemory) {
@@ -168,11 +151,8 @@ void Scheduler::start() {
                 // Update core tracking after process completion
                 {
                     std::lock_guard<std::mutex> lock(processQueueMutex);
+                    --activeThreads;
 
-
-
-
-                    --activeThreads; // Decrement active thread count
                     if (processQueue.empty() && activeThreads == 0) {
                         schedulerRunning = false;
                         processQueueCondition.notify_all();
@@ -181,7 +161,7 @@ void Scheduler::start() {
                     }
                 }
             }
-            }).detach(); // Detach thread for independent execution
+            }).detach();
     }
 }
 
@@ -212,16 +192,13 @@ void Scheduler::workerFunction(int core, std::shared_ptr<Process> process, void*
 
     // Ensure the process keeps its original core for FCFS and RR
     if (process->getCPUCoreID() == -1) {
-        // If core is not yet assigned, set the current core as the affinity core
         process->setCPUCoreID(core);
     }
     else {
-        // Otherwise, ensure the process stays on its assigned core
         core = process->getCPUCoreID();
     }
 
     if (algorithm == "fcfs") {
-        // First-Come, First-Served logic
         for (int i = 0; i < process->getTotalLine(); i++) {
             if (ConsoleManager::getInstance()->getDelayPerExec() != 0) {
                 for (int i = 0; i < ConsoleManager::getInstance()->getDelayPerExec(); i++) {
@@ -232,7 +209,6 @@ void Scheduler::workerFunction(int core, std::shared_ptr<Process> process, void*
                 std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
             process->setCurrentLine(process->getCurrentLine() + 1);
-            // Increment active cpu tick
             cpuCycles++;
 
             if (coresAvailable > 0) {
@@ -259,10 +235,8 @@ void Scheduler::workerFunction(int core, std::shared_ptr<Process> process, void*
     }
 
     else if (algorithm == "rr") {
-        // Round-Robin logic
-        int quantum = ConsoleManager::getInstance()->getTimeSlice();  // Get RR time slice
+        int quantum = ConsoleManager::getInstance()->getTimeSlice();
 
-        // Process for the duration of the quantum or until the process is finished
         for (int i = 0; i < quantum && process->getCurrentLine() < process->getTotalLine(); i++) {
             if (ConsoleManager::getInstance()->getDelayPerExec() != 0) {
                 for (int i = 0; i < ConsoleManager::getInstance()->getDelayPerExec(); i++) {
@@ -274,7 +248,6 @@ void Scheduler::workerFunction(int core, std::shared_ptr<Process> process, void*
             }
             process->setCurrentLine(process->getCurrentLine() + 1);
 
-            // Increment active cpu tick
             cpuCycles++;
 
             if (coresAvailable > 0) {
@@ -282,7 +255,6 @@ void Scheduler::workerFunction(int core, std::shared_ptr<Process> process, void*
             }
         }
 
-        //if process is not finished, re-queue it but retain its core affinity
         if (process->getCurrentLine() < process->getTotalLine()) {
             std::lock_guard<std::mutex> lock(processQueueMutex);
             processQueue.push(process);  // Re-queue the unfinished process
@@ -291,7 +263,6 @@ void Scheduler::workerFunction(int core, std::shared_ptr<Process> process, void*
 
 
         process->setIsRunning(false);
-        // subtract cores utilization
         {
             std::lock_guard<std::mutex> lock(processQueueMutex);
             coresAvailable++;
@@ -302,7 +273,7 @@ void Scheduler::workerFunction(int core, std::shared_ptr<Process> process, void*
 
 
     string timestampFinished = ConsoleManager::getInstance()->getCurrentTimestamp();
-    process->setTimestampFinished(timestampFinished);  // Log completion time
+    process->setTimestampFinished(timestampFinished);
 }
 
 
@@ -311,7 +282,7 @@ void Scheduler::addProcessToQueue(std::shared_ptr<Process> process) {
         std::lock_guard<std::mutex> lock(processQueueMutex);
         processQueue.push(process);
     }
-    processQueueCondition.notify_one();  // Notify one waiting thread
+    processQueueCondition.notify_one();
 }
 
 void Scheduler::addToFrontOfProcessQueue(std::shared_ptr<Process> process) {
@@ -330,7 +301,7 @@ void Scheduler::addToFrontOfProcessQueue(std::shared_ptr<Process> process) {
     // Replace the original queue with the temporary queue
     processQueue = std::move(tempQueue);
 
-    processQueueCondition.notify_all();  // Notify all waiting threads
+    processQueueCondition.notify_all();
 }
 
 

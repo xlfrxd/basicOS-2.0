@@ -23,7 +23,7 @@ Process::Process(string processName, int currentLine, string timestamp, size_t m
 
 	this->numPages = ConsoleManager::getInstance()->getNumPages();
 
-	// create 100 print commands
+	// 100 print commands
 	for(int i=0; i<totalLine; i++){
 		this->printCommands.push_back(PrintCommand(i, "Printing from " + processName + " " + std::to_string(i)));
 

@@ -41,14 +41,7 @@ bool PagingAllocator::allocate(std::shared_ptr<Process> process) {
 
 		string processId = process->getProcessName();
 		size_t numFramesNeeded = process->getNumPages();
-		/*cout << "FRAMES: " << numFramesNeeded << endl;
-		cout << "SIZE: " << freeFrameList.size() << endl;*/
 
-		for (auto it = frameMap.begin(); it != frameMap.end(); ++it) {
-			//std::cout << "Frame Index: " << it->first << " -> Process: " << it->second << "\n";
-		}
-
-		//cout << "numFramesNeeded: " << numFramesNeeded << "freeFrameList size: " << freeFrameList.size() << endl;
 
 		if (numFramesNeeded > freeFrameList.size()) {
 
@@ -83,16 +76,12 @@ void PagingAllocator::deallocate(std::shared_ptr<Process> process) {
 			processMemoryMap[process->getProcessName()] -= process->getMemoryRequired();
 			process->setMemoryUsage(0);
 			if (processMemoryMap[process->getProcessName()] == 0) {
-				processMemoryMap.erase(process->getProcessName());  // Clean up zero usage
+				processMemoryMap.erase(process->getProcessName());
 			}
 		}
 
 
 	}
-
-	// process->setIsRunning(false);
-
-	/*cout << "PROCESS: " << process->getIsRunning() << endl;*/
 	{
 		std::lock_guard<std::mutex> lock(allocationMap2Mutex);
 		allocationMap.pop();
@@ -102,10 +91,10 @@ void PagingAllocator::deallocate(std::shared_ptr<Process> process) {
 bool PagingAllocator::isProcessInMemory(const std::string& processName) {
 	for (const auto& frame : frameMap) {
 		if (frame.second == processName) {
-			return true; // Process is found in memory
+			return true;
 		}
 	}
-	return false; // Process not found in memory
+	return false;
 }
 
 
@@ -117,9 +106,8 @@ void PagingAllocator::visualizeBackingStore() {
 
 	std::cout << "Backing Store Contents:" << std::endl;
 
-	size_t index = 0; // Index to track the position of the process in the queue
+	size_t index = 0; 
 	for (const auto& process : backingStore) {
-		// Access information from the Screen object
 		std::cout << "Index: " << index++
 			<< ", Process Name: " << process->getProcessName()
 			<< ", Memory Usage: " << process->getMemoryUsage()
@@ -133,7 +121,7 @@ void PagingAllocator::visualizeBackingStore() {
 void PagingAllocator::visualizeMemory()
 {
 	size_t usedFrames = calculateUsedFrames();
-	size_t totalMemory = maxMemorySize; // Maximum overall memory
+	size_t totalMemory = maxMemorySize;
 
 	this->setUsedMemory(usedFrames * ConsoleManager::getInstance()->getMemPerFrame());
 
@@ -143,12 +131,12 @@ void PagingAllocator::visualizeMemory()
 }
 
 size_t PagingAllocator::calculateUsedFrames() {
-	size_t usedFrames = 0; // Counter for allocated frames
+	size_t usedFrames = 0; 
 
 	// Iterate through frameMap to count allocated frames
 	for (const auto& frame : frameMap)
 	{
-		if (!frame.second.empty()) // Check if the frame is in use
+		if (!frame.second.empty()) 
 		{
 			++usedFrames;
 		}
@@ -211,8 +199,6 @@ std::string PagingAllocator::findOldestProcess() {
 		oldest = allocationMap.front();
 	}
 
-	//allocationMap.pop();
-
 	return oldest->getProcessName();
 
 }
@@ -221,17 +207,12 @@ void PagingAllocator::findAndRemoveProcessFromBackingStore(std::shared_ptr<Proce
 	bool found = false;
 
 	for (int i = 0; i < backingStore.size(); i++) {
-		//cout << "backing store process:" << backingStore[i]->getProcessName() << endl;
-		//cout << "process:" << process->getProcessName() << endl;
 		if (backingStore[i]->getProcessName() == process->getProcessName()) {
 			// Remove the process from the backing store
-			//cout << "Removing process " << process->getProcessName() << " from backing store." << endl;
 			backingStore.erase(backingStore.begin() + i);
 			break;
 		}
 	}
-
-	//cout << backingStore.size() << endl;
 }
 
 void PagingAllocator::allocateFromBackingStore(std::shared_ptr<Process> process) {

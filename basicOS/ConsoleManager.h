@@ -65,22 +65,20 @@ public:
 
 	//Process Screen
 	std::shared_ptr<Process> getScreenByProcessName(const std::string& processName);
-	std::unordered_map<std::string, std::shared_ptr<Process>> processNameToScreenMap;
 	std::unordered_map<string, std::shared_ptr<ProcessScreen>> getScreenMap();
 	std::shared_ptr<ProcessScreen> getCurrentConsole();
 	void registerConsole(std::shared_ptr<ProcessScreen> screenRef);
 	void setCurrentConsole(std::shared_ptr<ProcessScreen> screenRef);
 	void switchConsole(string consoleName);
-	void setInitialized(bool initialized);
 	bool getInitialized();
+	void setInitialized(bool initialized);
 
 	// Process information
 	string getCurrentTimestamp();
 	int getCpuCycles();
-	size_t getUsedMemory();
 	void getMemoryUsage();
-	void setNumPages();
 	int getNumPages();
+	void setNumPages();
 
 	// Scheduler
 	void schedulerTest();

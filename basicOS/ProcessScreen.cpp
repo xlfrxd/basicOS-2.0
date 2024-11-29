@@ -10,7 +10,6 @@ ProcessScreen::ProcessScreen() {
 
 }
 
-//draw main console here
 string ProcessScreen::getConsoleName(){
 	return this->name;
 }

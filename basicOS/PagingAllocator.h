@@ -47,6 +47,6 @@ private:
 	std::vector<shared_ptr<Process>> backingStore;
 	std::queue<shared_ptr<Process>> allocationMap;
 
-	size_t numPagedIn = 0;  // Tracks the number of pages paged into memory
-	size_t numPagedOut = 0; // Tracks the number of pages paged out of memory
+	size_t numPagedIn = 0;
+	size_t numPagedOut = 0;
 };

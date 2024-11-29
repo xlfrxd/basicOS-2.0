@@ -13,5 +13,5 @@ Instruction::CommandType Instruction::getCommandType()
 
 void Instruction::execute()
 {
-	// Do nothing
+	// Does nothing
 }

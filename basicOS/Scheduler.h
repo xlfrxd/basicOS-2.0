@@ -36,13 +36,10 @@ public:
     int getCoresUsed() const;
     int getCoresAvailable() const;
     int getIdleCpuTicks();
-    int coresUsed = 0; // Tracks how many cores are currently used
-    int coresAvailable; // Tracks how many cores are available
-
+    int coresUsed = 0;
+    int coresAvailable;
     int getCpuCycles() const;
     void setCpuCycles(int cpuCycles);
-
-    //void* getMemoryPtr();
 
 private:
     int numCores;
@@ -57,7 +54,6 @@ private:
     std::condition_variable processQueueCondition;
     static Scheduler* scheduler;
     string algorithm = "";
-    //void* memoryPtr;
 };
 
 #endif // SCHEDULER_H
