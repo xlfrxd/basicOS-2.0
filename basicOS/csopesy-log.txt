@@ -1,0 +1,10 @@
+
+CPU Utilization: 50%
+Cores used: 1
+Cores available: 1
+-----------------------------------
+Running processes:
+p1	(11/29/2024, 11:15:57 AM)	Core: 0	Progress: 319/4000
+
+Finished processes:
+-----------------------------------

@@ -1,0 +1,11 @@
+
+CPU Utilization: 100%
+Cores used: 1
+Cores available: 0
+-----------------------------------
+Running processes:
+Name: meow | 10/27/2024, 09:46:00 PM | Core: 0 | 520/1000 | 
+Name: lol | 10/27/2024, 09:46:03 PM | Core: 0 | 278/1000 | 
+
+Finished processes:
+-----------------------------------
