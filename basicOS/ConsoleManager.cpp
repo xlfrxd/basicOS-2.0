@@ -403,6 +403,15 @@ void ConsoleManager::printProcess(string enteredProcess){
     }
 }
 
+void ConsoleManager::getMemoryUsage() {
+    if (ConsoleManager::getInstance()->getMinMemPerProc() == ConsoleManager::getInstance()->getMaxMemPerProc()) {
+        cout << "Memory Usage: " << FlatMemoryAllocator::getInstance()->visualizeMemory() << endl;
+    }
+    else {
+        PagingAllocator::getInstance()->visualizeMemory();
+    }
+}
+
 void ConsoleManager::printProcessSmi() {
     unordered_map<string, shared_ptr<ProcessScreen>> screenMap = ConsoleManager::getInstance()->getScreenMap();
     Scheduler* scheduler = Scheduler::getInstance();
@@ -431,32 +440,21 @@ void ConsoleManager::printProcessSmi() {
 	cout << "===================================================" << endl << endl;
 }
 
-void ConsoleManager::getMemoryUsage() {
-    if (ConsoleManager::getInstance()->getMinMemPerProc() == ConsoleManager::getInstance()->getMaxMemPerProc()) {
-        cout << "Memory Usage: " << FlatMemoryAllocator::getInstance()->visualizeMemory() << endl;
-    }
-    else {
-        PagingAllocator::getInstance()->visualizeMemory();
-    }
-}
-
 void ConsoleManager::printVmstat() {
-    cout << "Total Memory: " << ConsoleManager::getInstance()->getMaxOverallMem() << " KB" << endl;
+    cout << ConsoleColor::BLUE << ConsoleManager::getInstance()->getMaxOverallMem() << ConsoleColor::RESET << " KB" << " total memory" << endl;
     if (ConsoleManager::getInstance()->getMinMemPerProc() == ConsoleManager::getInstance()->getMaxMemPerProc()) {
-        cout << "Used Memory: " << FlatMemoryAllocator::getInstance()->getTotalMemoryUsage() << " KB" << endl;
-        cout << "Free Memory: " << ConsoleManager::getInstance()->getMaxOverallMem() - FlatMemoryAllocator::getInstance()->getTotalMemoryUsage() << " KB" << endl;
+        cout << ConsoleColor::BLUE << FlatMemoryAllocator::getInstance()->getTotalMemoryUsage() << ConsoleColor::RESET << " KB" << " used memory" << endl;
+        cout << ConsoleColor::BLUE << ConsoleManager::getInstance()->getMaxOverallMem() - FlatMemoryAllocator::getInstance()->getTotalMemoryUsage() << ConsoleColor::RESET << " KB" << " free memory" << endl;
     }
     else {
-        cout << "Used Memory: " << PagingAllocator::getInstance()->getUsedMemory() << " KB" << endl;
-        cout << "Free Memory: " << ConsoleManager::getInstance()->getMaxOverallMem() - PagingAllocator::getInstance()->getUsedMemory() << " KB" << endl;
+        cout << ConsoleColor::BLUE << PagingAllocator::getInstance()->getUsedMemory() << ConsoleColor::RESET << " KB" << " used memory" << endl;
+        cout << ConsoleColor::BLUE << ConsoleManager::getInstance()->getMaxOverallMem() - PagingAllocator::getInstance()->getUsedMemory() << ConsoleColor::RESET << " KB" << " free memory" << endl;
     }
-    
-    
-    cout << "Idle CPU Ticks: " << Scheduler::getInstance()->getIdleCpuTicks() << endl;
-    cout << "Active CPU Ticks: " << Scheduler::getInstance()->getCpuCycles() << endl;
-    cout << "Total CPU Ticks: " << Scheduler::getInstance()->getCpuCycles() + Scheduler::getInstance()->getIdleCpuTicks() << endl;
-    cout << "Num paged in: " << PagingAllocator::getInstance()->getNumPagedIn() << endl;
-    cout << "Num paged out: " << PagingAllocator::getInstance()->getNumPagedOut() << endl << endl;
+    cout << ConsoleColor::BLUE << Scheduler::getInstance()->getIdleCpuTicks() << ConsoleColor::RESET << " idle cpu ticks" << endl;
+    cout << ConsoleColor::BLUE << Scheduler::getInstance()->getCpuCycles() << ConsoleColor::RESET << " active cpu ticks" << endl;
+    cout << ConsoleColor::BLUE << Scheduler::getInstance()->getCpuCycles() + Scheduler::getInstance()->getIdleCpuTicks() << ConsoleColor::RESET << " total cpu ticks" << endl;
+    cout << ConsoleColor::BLUE << PagingAllocator::getInstance()->getNumPagedIn() << ConsoleColor::RESET << " num paged in" << endl;
+    cout << ConsoleColor::BLUE << PagingAllocator::getInstance()->getNumPagedOut() << ConsoleColor::RESET << " num paged out"<< endl << endl;
 }
 
 void ConsoleManager::printHeader() {
