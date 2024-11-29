@@ -320,6 +320,10 @@ void ConsoleManager::setNumPages() {
 	this->numPages = numPages;
 }
 
+int ConsoleManager::getMemRequired() {
+	return this->memRequired;
+}
+
 void ConsoleManager::setMemRequired(){
     std::random_device rd;
     std::mt19937 gen(rd());
