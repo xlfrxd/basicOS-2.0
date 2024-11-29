@@ -77,6 +77,8 @@ public:
 	string getCurrentTimestamp();
 	int getCpuCycles();
 	void getMemoryUsage();
+	int getMemRequired();
+	void setMemRequired();
 	int getNumPages();
 	void setNumPages();
 
@@ -105,6 +107,7 @@ private:
 	int delayPerExec = 0;
 	int cpuCycles = 0;
 	int batchProcessFrequency = 0;
+	int memRequired = 0;
 	size_t maxOverallMem = 0;
 	size_t memPerFrame = 0;
 	size_t minMemPerProc = 0;

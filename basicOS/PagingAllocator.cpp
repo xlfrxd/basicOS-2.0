@@ -40,7 +40,7 @@ bool PagingAllocator::allocate(std::shared_ptr<Process> process) {
 		std::lock_guard<std::mutex> lock(allocationMap2Mutex);
 
 		string processId = process->getProcessName();
-		size_t numFramesNeeded = process->getNumPages();
+		size_t numFramesNeeded = process->getMemoryRequired();
 
 
 		if (numFramesNeeded > freeFrameList.size()) {

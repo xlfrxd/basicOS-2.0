@@ -130,7 +130,8 @@ void ConsoleManager::initializeConfiguration() {
 
 	Scheduler* scheduler = Scheduler::getInstance();
 
-    setNumPages();
+    // setNumPages();
+	setMemRequired();
 }
 
 void ConsoleManager::initializeAllocators() {
@@ -316,11 +317,15 @@ int ConsoleManager::getNumPages() {
 }
 
 void ConsoleManager::setNumPages() {
+	this->numPages = numPages;
+}
+
+void ConsoleManager::setMemRequired(){
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<> dis(ConsoleManager::getInstance()->getMinMemPerProc(), ConsoleManager::getInstance()->getMaxMemPerProc());
 
-    this->numPages = dis(gen) / ConsoleManager::getInstance()->getMemPerFrame();
+    this->memRequired = dis(gen) / ConsoleManager::getInstance()->getMemPerFrame();
 }
 
 // Scheduler
@@ -330,9 +335,9 @@ void ConsoleManager::schedulerTest() {
 
     while (Scheduler::getInstance()->getSchedulerTestRunning()) {
         for (int i = 0; i < ConsoleManager::getInstance()->getBatchProcessFrequency(); i++) {
-           /* string processName = "cycle" + std::to_string(ConsoleManager::getInstance()->cpuCycles) + "processName" + std::to_string(i);*/
+			getMemRequired();
             string processName = "P" + std::to_string(process_counter);
-            shared_ptr<ProcessScreen> processScreen = make_shared<Process>(processName, 0, ConsoleManager::getInstance()->getCurrentTimestamp(), ConsoleManager::getInstance()->getMinMemPerProc());
+            shared_ptr<ProcessScreen> processScreen = make_shared<Process>(processName, 0, ConsoleManager::getInstance()->getCurrentTimestamp(), ConsoleManager::getInstance()->getMemRequired());
             shared_ptr<Process> processPtr = static_pointer_cast<Process>(processScreen);
             Scheduler::getInstance()->addProcessToQueue(processPtr);
             ConsoleManager::getInstance()->registerConsole(processScreen);
