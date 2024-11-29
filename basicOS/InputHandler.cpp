@@ -1,6 +1,6 @@
 #include <iostream>
 
-#include "InputCommands.h"
+#include "InputHandler.h"
 #include "ConsoleManager.h"
 #include "FlatMemoryAllocator.h"
 #include "PagingAllocator.h"
@@ -8,30 +8,30 @@
 
 using namespace std;
 
-InputCommands::InputCommands()
+InputHandler::InputHandler()
 {
 }
 
 // stores the created instance of console manager
-InputCommands* InputCommands::inputCommands = inputCommands;
+InputHandler* InputHandler::inputHandler = inputHandler;
 
 
-void InputCommands::initialize()
+void InputHandler::initialize()
 {
-    inputCommands = new InputCommands();
+    inputHandler = new InputHandler();
 }
 
-void InputCommands::destroy()
+void InputHandler::destroy()
 {
-	delete inputCommands;
+	delete inputHandler;
 }
 
-InputCommands* InputCommands::getInstance()
+InputHandler* InputHandler::getInstance()
 {
-	return inputCommands;
+	return inputHandler;
 }
 
-void InputCommands::handleMainConsoleInput()
+void InputHandler::handleMainConsoleInput()
 {
     cout << "Enter a command: ";
     string input;

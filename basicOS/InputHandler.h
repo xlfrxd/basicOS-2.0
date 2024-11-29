@@ -1,16 +1,16 @@
 #pragma once
 #include <iostream>
 
-class InputCommands
+class InputHandler
 {
 public:
-	InputCommands();
+	InputHandler();
 	static void initialize();
-	static InputCommands* getInstance();
+	static InputHandler* getInstance();
 	void handleMainConsoleInput();
 	void destroy();
 
 private:
-	static InputCommands* inputCommands;
+	static InputHandler* inputHandler;
 };
 

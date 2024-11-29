@@ -14,7 +14,7 @@
 #include <random>
 
 #include "ConsoleManager.h"
-#include "InputCommands.h"
+#include "InputHandler.h"
 #include "ProcessScreen.h"
 #include "ConsoleScreen.h"
 #include "Scheduler.h"
@@ -26,7 +26,7 @@ using namespace std;
 int main()
 {
     ConsoleManager::initialize();
-    InputCommands::initialize();
+    InputHandler::initialize();
 
     shared_ptr<ProcessScreen> mainScreen = make_shared<ConsoleScreen>(MAIN_CONSOLE);
 
@@ -41,11 +41,11 @@ int main()
     PagingAllocator::initialize(maxOverallMem);
 
     while (running){
-        InputCommands::getInstance()->handleMainConsoleInput();
+        InputHandler::getInstance()->handleMainConsoleInput();
         running = ConsoleManager::getInstance()->isRunning();
     }
     
-    InputCommands::getInstance()->destroy();
+    InputHandler::getInstance()->destroy();
     ConsoleManager::getInstance()->destroy();
 
     return 0;

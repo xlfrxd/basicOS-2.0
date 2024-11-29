@@ -147,7 +147,7 @@
     <ClInclude Include="ConsoleManager.h" />
     <ClInclude Include="FlatMemoryAllocator.h" />
     <ClInclude Include="Instruction.h" />
-    <ClInclude Include="InputCommands.h" />
+    <ClInclude Include="InputHandler.h" />
     <ClInclude Include="ConsoleScreen.h" />
     <ClInclude Include="PagingAllocator.h" />
     <ClInclude Include="PrintCommand.h" />
